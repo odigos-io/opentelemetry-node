@@ -1,0 +1,15 @@
+{
+  "name": "@odigos/opentelemetry-node",
+  "version": "0.0.1",
+  "description": "Odigos distribution of OpenTelemetry for Node.js",
+  "main": "build/src/index.js",
+  "repository": "https://github.com/odigos-io/opentelemetry-node",
+  "author": "Odigos Authors",
+  "license": "Apache-2.0",
+  "scripts": {
+    "compile": "tsc -p ."
+  },
+  "dependencies": {
+    "typescript": "^5.4.5"
+  }
+}
