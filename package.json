@@ -10,6 +10,10 @@
     "compile": "tsc -p ."
   },
   "dependencies": {
+    "@opentelemetry/api": "1.8.0",
+    "@opentelemetry/auto-instrumentations-node": "0.46.1",
+    "@opentelemetry/exporter-trace-otlp-grpc": "0.51.1",
+    "@opentelemetry/sdk-node": "0.51.1",
     "typescript": "^5.4.5"
   }
 }
