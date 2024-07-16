@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: /
+    schedule:
+      day: sunday
+      interval: weekly
+  - package-ecosystem: yarn
+    directory: "/"
+    schedule:
+      day: sunday
+      interval: weekly
+    groups:
+      otel-dependencies:
+        patterns:
+          - "@opentelemetry*"
