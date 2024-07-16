@@ -1,0 +1,20 @@
+name: build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+    build-agent:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - name: Set up Node.js
+              uses: actions/setup-node@v2
+              with:
+                node-version: '18'
+            - name: Install dependencies
+              run: yarn install
+            - name: Build
+              run: yarn compile
