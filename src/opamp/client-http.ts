@@ -83,8 +83,34 @@ export class OpAMPClientHttp {
     };
   }
 
-  async start() {
-    await this.sendFirstMessageWithRetry();
+  // start the OpAMP client.
+  // if err is provided, OpAMP will not start and will send an AgentDisconnect message to the server
+  // with the error message and then exit.
+  // use it when the SDK is not able to start for some reason and you want to notify the server about it.
+  async start(errMessage?: string) {
+    const fullStateAgentToServerMessage =
+      this.getFullStateAgentToServerMessage();
+    if (errMessage) {
+      this.logger.error(
+        "OpAMP client report SDK unhealthy and will not start.",
+        { errMessage: errMessage }
+      );
+      const agentDisconnectMessage = {
+        agentDisconnect: {},
+        health: {
+          healthy: false,
+          lastError: errMessage,
+        },
+      };
+      const firstAgentToServer = {
+        ...fullStateAgentToServerMessage,
+        ...agentDisconnectMessage,
+      };
+      await this.sendFirstMessageWithRetry(firstAgentToServer);
+      return;
+    }
+
+    await this.sendFirstMessageWithRetry(fullStateAgentToServerMessage);
     const timer = setInterval(async () => {
       let heartbeatRes = await this.sendHeartBeatToServer();
       if (!heartbeatRes) {
@@ -98,7 +124,9 @@ export class OpAMPClientHttp {
       ) {
         this.logger.info("Opamp server requested full state report");
         try {
-          await this.sendFullState();
+          const agentToServerFullState =
+            this.getFullStateAgentToServerMessage();
+          await this.sendAgentToServerMessage(agentToServerFullState);
         } catch (error) {
           this.logger.warn(
             "Error sending full state to OpAMP server on heartbeat response",
@@ -117,20 +145,26 @@ export class OpAMPClientHttp {
         agentDisconnect: {},
       });
     } catch (error) {
-      this.logger.error("Error sending AgentDisconnect message to OpAMP server");
+      this.logger.error(
+        "Error sending AgentDisconnect message to OpAMP server"
+      );
     }
   }
 
   // the first opamp message is special, as we need to get the remote resource attributes.
   // this function will attempt to send the first message, and will retry after some interval if it fails.
   // if no remote resource attributes are received after some grace period, we will continue without them.
-  private async sendFirstMessageWithRetry() {
+  private async sendFirstMessageWithRetry(
+    firstAgentToServer: PartialMessage<AgentToServer>
+  ) {
     let remainingRetries = 5;
     const retryIntervalMs = 2000;
 
     for (let i = 0; i < remainingRetries; i++) {
       try {
-        const firstServerToAgent = await this.sendFullState();
+        const firstServerToAgent = await this.sendAgentToServerMessage(
+          firstAgentToServer
+        );
         this.handleFirstMessageResponse(firstServerToAgent);
         return;
       } catch (error) {
@@ -216,8 +250,8 @@ export class OpAMPClientHttp {
     }
   }
 
-  private async sendFullState() {
-    return await this.sendAgentToServerMessage({
+  private getFullStateAgentToServerMessage(): PartialMessage<AgentToServer> {
+    return {
       agentDescription: new AgentDescription({
         identifyingAttributes: otelAttributesToKeyValuePairs({
           [SEMRESATTRS_SERVICE_INSTANCE_ID]: this.opampInstanceUidString, // always send the instance id
@@ -232,7 +266,7 @@ export class OpAMPClientHttp {
           this.config.initialPackageStatues.map((pkg) => [pkg.name, pkg])
         ),
       }),
-    });
+    };
   }
 
   private async sendAgentToServerMessage(
