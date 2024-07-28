@@ -9,7 +9,7 @@ import {
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from "@opentelemetry/core";
-import { OpAMPClientHttp, RemoteConfig } from "./opamp";
+import { OpAMPClientHttp, RemoteConfig, SdkHealthStatus } from "./opamp";
 import {
   SEMRESATTRS_TELEMETRY_SDK_LANGUAGE,
   TELEMETRYSDKLANGUAGEVALUES_NODEJS,
@@ -150,7 +150,10 @@ if (!opampServerHost || !instrumentationDeviceId) {
     initialPackageStatues: [],
   });
   const errorMessage = `Node.js runtime version not supported by OpenTelemetry SDK. Found: '${process.versions.node}' supports: '>=14'`;
-  opampClient.start(errorMessage);
+  opampClient.start({
+    errorMessage,
+    status: SdkHealthStatus.UnsupportedRuntimeVersion,
+  });
 } else {
   startOpenTelemetryAgent(instrumentationDeviceId, opampServerHost);
 }
