@@ -54,9 +54,10 @@ export enum SdkHealthStatus {
   Healthy = "Healthy",
   UnsupportedRuntimeVersion = "UnsupportedRuntimeVersion",
   ProcessTerminated = "ProcessTerminated",
+  Starting = "Starting",
 }
 
-export type SdkUnhealthyInfo = {
-  errorMessage: string;
+export type SdkHealthInfo = {
+  errorMessage?: string;
   status: SdkHealthStatus;
 };

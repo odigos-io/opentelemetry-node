@@ -7,7 +7,7 @@ import {
   ServerToAgent,
   ServerToAgentFlags,
 } from "./generated/opamp_pb";
-import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkUnhealthyInfo } from "./types";
+import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkHealthInfo } from "./types";
 import { otelAttributesToKeyValuePairs } from "./utils";
 import { uuidv7 } from "uuidv7";
 import axios, { AxiosInstance } from "axios";
@@ -37,12 +37,18 @@ export class OpAMPClientHttp {
   // store a reference to the heartbeat timer so it can be stopped on shutdown
   private heartbeatTimer: NodeJS.Timeout | undefined;
 
+  private lastSdkHealthInfo: SdkHealthInfo;
+
   constructor(config: OpAMPClientHttpConfig) {
     this.config = config;
     this.opampInstanceUidString = uuidv7();
     this.OpAMPInstanceUidBytes = new TextEncoder().encode(
       this.opampInstanceUidString
     );
+    this.lastSdkHealthInfo = {
+      errorMessage: "Node.js OpenTelemetry agent is starting",
+      status: SdkHealthStatus.Starting,
+    };
     this.httpClient = axios.create({
       baseURL: `http://${this.config.opAMPServerHost}`,
       headers: {
@@ -90,7 +96,7 @@ export class OpAMPClientHttp {
   // if err is provided, OpAMP will not start and will send an AgentDisconnect message to the server
   // with the error message and then exit.
   // use it when the SDK is not able to start for some reason and you want to notify the server about it.
-  async start(unhealthy?: SdkUnhealthyInfo) {
+  async start(unhealthy?: SdkHealthInfo) {
     const fullStateAgentToServerMessage =
       this.getFullStateAgentToServerMessage();
     if (unhealthy) {
@@ -282,6 +288,11 @@ export class OpAMPClientHttp {
           this.config.initialPackageStatues.map((pkg) => [pkg.name, pkg])
         ),
       }),
+      health: {
+        healthy: !this.lastSdkHealthInfo.errorMessage,
+        lastError: this.lastSdkHealthInfo.errorMessage,
+        status: this.lastSdkHealthInfo.status,
+      }
     };
   }
 
