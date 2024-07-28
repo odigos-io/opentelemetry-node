@@ -114,12 +114,12 @@ const startOpenTelemetryAgent = (instrumentationDeviceId: string, opampServerHos
 
   opampClient.start();
 
-  const shutdown = async () => {
+  const shutdown = async (shutdownReason: string) => {
     try {
       diag.info("Shutting down OpenTelemetry SDK and OpAMP client");
       await Promise.all([
         // sdk.shutdown(),
-        opampClient.shutdown(),
+        opampClient.shutdown(shutdownReason),
         spanProcessor.shutdown(),
       ]);
     } catch (err) {
@@ -127,9 +127,13 @@ const startOpenTelemetryAgent = (instrumentationDeviceId: string, opampServerHos
     }
   };
 
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
-  process.on("exit", shutdown);
+  process.on("SIGTERM", () => shutdown("runtime received SIGTERM"));
+  process.on("SIGINT", () => shutdown("runtime received SIGINT"));
+  // exit will be called when:
+  // - explicit exit - the process.exit() method is called explicitly
+  // - normal exit - the Node.js event loop has no additional work to perform
+  // - fatal error - an uncaught exception is thrown and not handled by application code
+  process.on("exit", () => shutdown("node.js runtime is exiting"));
 }
 
 

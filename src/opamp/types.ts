@@ -53,6 +53,7 @@ export type RemoteConfig = {
 export enum SdkHealthStatus {
   Healthy = "Healthy",
   UnsupportedRuntimeVersion = "UnsupportedRuntimeVersion",
+  ProcessTerminated = "ProcessTerminated",
 }
 
 export type SdkUnhealthyInfo = {

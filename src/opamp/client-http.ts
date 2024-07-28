@@ -7,7 +7,7 @@ import {
   ServerToAgent,
   ServerToAgentFlags,
 } from "./generated/opamp_pb";
-import { OpAMPClientHttpConfig, RemoteConfig, SdkUnhealthyInfo } from "./types";
+import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkUnhealthyInfo } from "./types";
 import { otelAttributesToKeyValuePairs } from "./utils";
 import { uuidv7 } from "uuidv7";
 import axios, { AxiosInstance } from "axios";
@@ -139,11 +139,16 @@ export class OpAMPClientHttp {
     timer.unref(); // do not keep the process alive just for this timer
   }
 
-  async shutdown() {
+  async shutdown(shutdownReason: string) {
     this.logger.info("Sending AgentDisconnect message to OpAMP server");
     try {
       await this.sendAgentToServerMessage({
         agentDisconnect: {},
+        health: {
+          healthy: false,
+          lastError: shutdownReason,
+          status: SdkHealthStatus.ProcessTerminated,
+        },
       });
     } catch (error) {
       this.logger.error(
