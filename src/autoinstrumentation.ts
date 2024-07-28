@@ -118,7 +118,6 @@ const startOpenTelemetryAgent = (instrumentationDeviceId: string, opampServerHos
     try {
       diag.info("Shutting down OpenTelemetry SDK and OpAMP client");
       await Promise.all([
-        // sdk.shutdown(),
         opampClient.shutdown(shutdownReason),
         spanProcessor.shutdown(),
       ]);

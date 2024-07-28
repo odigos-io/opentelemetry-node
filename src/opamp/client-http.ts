@@ -34,6 +34,9 @@ export class OpAMPClientHttp {
   // the remote config to use when we failed to get data from the server
   private defaultRemoteConfig: RemoteConfig;
 
+  // store a reference to the heartbeat timer so it can be stopped on shutdown
+  private heartbeatTimer: NodeJS.Timeout | undefined;
+
   constructor(config: OpAMPClientHttpConfig) {
     this.config = config;
     this.opampInstanceUidString = uuidv7();
@@ -112,7 +115,7 @@ export class OpAMPClientHttp {
     }
 
     await this.sendFirstMessageWithRetry(fullStateAgentToServerMessage);
-    const timer = setInterval(async () => {
+    this.heartbeatTimer = setInterval(async () => {
       let heartbeatRes = await this.sendHeartBeatToServer();
       if (!heartbeatRes) {
         return;
@@ -135,11 +138,16 @@ export class OpAMPClientHttp {
           );
         }
       }
-    }, this.config.pollingIntervalMs || 30000);
-    timer.unref(); // do not keep the process alive just for this timer
+    }, this.config.pollingIntervalMs || 10000);
+    this.heartbeatTimer.unref(); // do not keep the process alive just for this timer
   }
 
   async shutdown(shutdownReason: string) {
+    if (!this.heartbeatTimer) {
+      this.logger.info("OpAMP client shutdown called on an inactive opamp client");
+      return;
+    }
+
     this.logger.info("Sending AgentDisconnect message to OpAMP server");
     try {
       await this.sendAgentToServerMessage({
@@ -155,6 +163,8 @@ export class OpAMPClientHttp {
         "Error sending AgentDisconnect message to OpAMP server"
       );
     }
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = undefined;
   }
 
   // the first opamp message is special, as we need to get the remote resource attributes.
