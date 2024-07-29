@@ -93,6 +93,11 @@ export class OpAMPClientHttp {
   }
 
   async setSdkHealthy() {
+    // avoid sending the health message with no change
+    if (this.lastSdkHealthInfo.status === SdkHealthStatus.Healthy) {
+      return;
+    }
+    
     this.lastSdkHealthInfo = {
       status: SdkHealthStatus.Healthy,
     };
