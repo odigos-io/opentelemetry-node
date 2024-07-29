@@ -8,7 +8,7 @@ import {
   ServerToAgentFlags,
 } from "./generated/opamp_pb";
 import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkHealthInfo } from "./types";
-import { otelAttributesToKeyValuePairs } from "./utils";
+import { otelAttributesToKeyValuePairs, sdkHealthInfoToOpampMessage } from "./utils";
 import { uuidv7 } from "uuidv7";
 import axios, { AxiosInstance } from "axios";
 import { Resource } from "@opentelemetry/resources";
@@ -92,6 +92,13 @@ export class OpAMPClientHttp {
     };
   }
 
+  async setSdkHealthy() {
+    this.lastSdkHealthInfo = {
+      status: SdkHealthStatus.Healthy,
+    };
+    await this.sendAgentToServerMessage(sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo));
+  }
+
   // start the OpAMP client.
   // if err is provided, OpAMP will not start and will send an AgentDisconnect message to the server
   // with the error message and then exit.
@@ -106,11 +113,7 @@ export class OpAMPClientHttp {
       );
       const agentDisconnectMessage = {
         agentDisconnect: {},
-        health: {
-          healthy: false,
-          lastError: unhealthy.errorMessage,
-          status: unhealthy.status,
-        },
+        ...sdkHealthInfoToOpampMessage(unhealthy),
       };
       const firstAgentToServer = {
         ...fullStateAgentToServerMessage,
@@ -154,15 +157,16 @@ export class OpAMPClientHttp {
       return;
     }
 
+    this.lastSdkHealthInfo = {
+      status: SdkHealthStatus.ProcessTerminated,
+      errorMessage: shutdownReason,
+    }
+
     this.logger.info("Sending AgentDisconnect message to OpAMP server");
     try {
       await this.sendAgentToServerMessage({
         agentDisconnect: {},
-        health: {
-          healthy: false,
-          lastError: shutdownReason,
-          status: SdkHealthStatus.ProcessTerminated,
-        },
+        ...sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo),
       });
     } catch (error) {
       this.logger.error(
@@ -288,11 +292,7 @@ export class OpAMPClientHttp {
           this.config.initialPackageStatues.map((pkg) => [pkg.name, pkg])
         ),
       }),
-      health: {
-        healthy: !this.lastSdkHealthInfo.errorMessage,
-        lastError: this.lastSdkHealthInfo.errorMessage,
-        status: this.lastSdkHealthInfo.status,
-      }
+      ...sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo),
     };
   }
 

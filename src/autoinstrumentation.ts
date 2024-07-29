@@ -108,6 +108,7 @@ const startOpenTelemetryAgent = (instrumentationDeviceId: string, opampServerHos
         remoteConfig.sdk.traceSignal,
         tracerProvider
       );
+      opampClient.setSdkHealthy();
     },
     initialPackageStatues: instrumentationLibraries.getPackageStatuses(),
   });
