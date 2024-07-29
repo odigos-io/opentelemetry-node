@@ -47,3 +47,17 @@ export type RemoteConfig = {
   sdk: SdkConfiguration;
   instrumentationLibraries: InstrumentationLibraryConfiguration[];
 };
+
+// these enums are agreed upon with the OpAMP server.
+// they represents the health status of the SDK in known states which can be processed programmatically.
+export enum SdkHealthStatus {
+  Healthy = "Healthy",
+  UnsupportedRuntimeVersion = "UnsupportedRuntimeVersion",
+  ProcessTerminated = "ProcessTerminated",
+  Starting = "Starting",
+}
+
+export type SdkHealthInfo = {
+  errorMessage?: string;
+  status: SdkHealthStatus;
+};

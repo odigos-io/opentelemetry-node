@@ -1,6 +1,9 @@
 import { AttributeValue, Attributes } from "@opentelemetry/api";
 import { AnyValue, KeyValue } from "./generated/anyvalue_pb";
 import { ResourceAttributeFromServer } from "./opamp-types";
+import { AgentToServer } from "./generated/opamp_pb";
+import { SdkHealthInfo } from "./types";
+import { PartialMessage } from "@bufbuild/protobuf";
 
 const attributeValueToAnyValue = (value: AttributeValue | undefined): AnyValue => {
     const anyValue = new AnyValue();
@@ -46,4 +49,14 @@ export const keyValuePairsToOtelAttributes = (keyValuePairs?: ResourceAttributeF
         }
         return acc;
     }, {} as Attributes);
+};
+
+export const sdkHealthInfoToOpampMessage = (sdkHealthInfo: SdkHealthInfo): PartialMessage<AgentToServer> => {
+    return {
+        health: {
+            healthy: !sdkHealthInfo.errorMessage,
+            lastError: sdkHealthInfo.errorMessage,
+            status: sdkHealthInfo.status,
+          },  
+    }
 };

@@ -7,8 +7,8 @@ import {
   ServerToAgent,
   ServerToAgentFlags,
 } from "./generated/opamp_pb";
-import { OpAMPClientHttpConfig, RemoteConfig } from "./types";
-import { otelAttributesToKeyValuePairs } from "./utils";
+import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkHealthInfo } from "./types";
+import { otelAttributesToKeyValuePairs, sdkHealthInfoToOpampMessage } from "./utils";
 import { uuidv7 } from "uuidv7";
 import axios, { AxiosInstance } from "axios";
 import { Resource } from "@opentelemetry/resources";
@@ -34,12 +34,21 @@ export class OpAMPClientHttp {
   // the remote config to use when we failed to get data from the server
   private defaultRemoteConfig: RemoteConfig;
 
+  // store a reference to the heartbeat timer so it can be stopped on shutdown
+  private heartbeatTimer: NodeJS.Timeout | undefined;
+
+  private lastSdkHealthInfo: SdkHealthInfo;
+
   constructor(config: OpAMPClientHttpConfig) {
     this.config = config;
     this.opampInstanceUidString = uuidv7();
     this.OpAMPInstanceUidBytes = new TextEncoder().encode(
       this.opampInstanceUidString
     );
+    this.lastSdkHealthInfo = {
+      errorMessage: "Node.js OpenTelemetry agent is starting",
+      status: SdkHealthStatus.Starting,
+    };
     this.httpClient = axios.create({
       baseURL: `http://${this.config.opAMPServerHost}`,
       headers: {
@@ -83,9 +92,44 @@ export class OpAMPClientHttp {
     };
   }
 
-  async start() {
-    await this.sendFirstMessageWithRetry();
-    const timer = setInterval(async () => {
+  async setSdkHealthy() {
+    // avoid sending the health message with no change
+    if (this.lastSdkHealthInfo.status === SdkHealthStatus.Healthy) {
+      return;
+    }
+    
+    this.lastSdkHealthInfo = {
+      status: SdkHealthStatus.Healthy,
+    };
+    await this.sendAgentToServerMessage(sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo));
+  }
+
+  // start the OpAMP client.
+  // if err is provided, OpAMP will not start and will send an AgentDisconnect message to the server
+  // with the error message and then exit.
+  // use it when the SDK is not able to start for some reason and you want to notify the server about it.
+  async start(unhealthy?: SdkHealthInfo) {
+    const fullStateAgentToServerMessage =
+      this.getFullStateAgentToServerMessage();
+    if (unhealthy) {
+      this.logger.error(
+        "OpAMP client report SDK unhealthy and will not start.",
+        { ...unhealthy }
+      );
+      const agentDisconnectMessage = {
+        agentDisconnect: {},
+        ...sdkHealthInfoToOpampMessage(unhealthy),
+      };
+      const firstAgentToServer = {
+        ...fullStateAgentToServerMessage,
+        ...agentDisconnectMessage,
+      };
+      await this.sendFirstMessageWithRetry(firstAgentToServer);
+      return;
+    }
+
+    await this.sendFirstMessageWithRetry(fullStateAgentToServerMessage);
+    this.heartbeatTimer = setInterval(async () => {
       let heartbeatRes = await this.sendHeartBeatToServer();
       if (!heartbeatRes) {
         return;
@@ -98,7 +142,9 @@ export class OpAMPClientHttp {
       ) {
         this.logger.info("Opamp server requested full state report");
         try {
-          await this.sendFullState();
+          const agentToServerFullState =
+            this.getFullStateAgentToServerMessage();
+          await this.sendAgentToServerMessage(agentToServerFullState);
         } catch (error) {
           this.logger.warn(
             "Error sending full state to OpAMP server on heartbeat response",
@@ -106,31 +152,50 @@ export class OpAMPClientHttp {
           );
         }
       }
-    }, this.config.pollingIntervalMs || 30000);
-    timer.unref(); // do not keep the process alive just for this timer
+    }, this.config.pollingIntervalMs || 10000);
+    this.heartbeatTimer.unref(); // do not keep the process alive just for this timer
   }
 
-  async shutdown() {
+  async shutdown(shutdownReason: string) {
+    if (!this.heartbeatTimer) {
+      this.logger.info("OpAMP client shutdown called on an inactive opamp client");
+      return;
+    }
+
+    this.lastSdkHealthInfo = {
+      status: SdkHealthStatus.ProcessTerminated,
+      errorMessage: shutdownReason,
+    }
+
     this.logger.info("Sending AgentDisconnect message to OpAMP server");
     try {
       await this.sendAgentToServerMessage({
         agentDisconnect: {},
+        ...sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo),
       });
     } catch (error) {
-      this.logger.error("Error sending AgentDisconnect message to OpAMP server");
+      this.logger.error(
+        "Error sending AgentDisconnect message to OpAMP server"
+      );
     }
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = undefined;
   }
 
   // the first opamp message is special, as we need to get the remote resource attributes.
   // this function will attempt to send the first message, and will retry after some interval if it fails.
   // if no remote resource attributes are received after some grace period, we will continue without them.
-  private async sendFirstMessageWithRetry() {
+  private async sendFirstMessageWithRetry(
+    firstAgentToServer: PartialMessage<AgentToServer>
+  ) {
     let remainingRetries = 5;
     const retryIntervalMs = 2000;
 
     for (let i = 0; i < remainingRetries; i++) {
       try {
-        const firstServerToAgent = await this.sendFullState();
+        const firstServerToAgent = await this.sendAgentToServerMessage(
+          firstAgentToServer
+        );
         this.handleFirstMessageResponse(firstServerToAgent);
         return;
       } catch (error) {
@@ -216,8 +281,8 @@ export class OpAMPClientHttp {
     }
   }
 
-  private async sendFullState() {
-    return await this.sendAgentToServerMessage({
+  private getFullStateAgentToServerMessage(): PartialMessage<AgentToServer> {
+    return {
       agentDescription: new AgentDescription({
         identifyingAttributes: otelAttributesToKeyValuePairs({
           [SEMRESATTRS_SERVICE_INSTANCE_ID]: this.opampInstanceUidString, // always send the instance id
@@ -232,7 +297,8 @@ export class OpAMPClientHttp {
           this.config.initialPackageStatues.map((pkg) => [pkg.name, pkg])
         ),
       }),
-    });
+      ...sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo),
+    };
   }
 
   private async sendAgentToServerMessage(
