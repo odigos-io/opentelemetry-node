@@ -144,7 +144,8 @@ export class OpAMPClientHttp {
         try {
           const agentToServerFullState =
             this.getFullStateAgentToServerMessage();
-          await this.sendAgentToServerMessage(agentToServerFullState);
+          const healthMessage = sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo)
+          await this.sendAgentToServerMessage({ ...agentToServerFullState, ...healthMessage} );
         } catch (error) {
           this.logger.warn(
             "Error sending full state to OpAMP server on heartbeat response",
