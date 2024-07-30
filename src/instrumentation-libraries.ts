@@ -1,5 +1,4 @@
 import { Instrumentation } from "@opentelemetry/instrumentation";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { ProxyTracerProvider, TracerProvider, diag, trace } from "@opentelemetry/api";
 import {
   InstrumentationLibraryConfiguration,
@@ -7,6 +6,7 @@ import {
 } from "./opamp";
 import { PackageStatus } from "./opamp/generated/opamp_pb";
 import { PartialMessage } from "@bufbuild/protobuf";
+import { getNodeAutoInstrumentations } from "./components";
 
 type OdigosInstrumentation = {
   otelInstrumentation: Instrumentation;
