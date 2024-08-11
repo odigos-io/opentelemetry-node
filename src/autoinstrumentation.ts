@@ -3,7 +3,7 @@ import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 // diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 diag.info("Starting Odigos OpenTelemetry auto-instrumentation agent");
 
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import {
   CompositePropagator,
   W3CBaggagePropagator,
