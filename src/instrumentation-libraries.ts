@@ -35,6 +35,7 @@ export class InstrumentationLibraries {
   private instrumentationLibraries: OdigosInstrumentation[];
 
   private noopTracerProvider: TracerProvider;
+  private globalProxyTracerProvider: ProxyTracerProvider;
 
   private logger = diag.createComponentLogger({
     namespace: "@odigos/opentelemetry-node/instrumentation-libraries",
@@ -43,8 +44,12 @@ export class InstrumentationLibraries {
   constructor() {
     this.instrumentations = getNodeAutoInstrumentations();
 
+    // global tracer provider (not used for managed instrumentation libraries)
+    this.globalProxyTracerProvider = new ProxyTracerProvider();
+    trace.setGlobalTracerProvider(this.globalProxyTracerProvider);
+
     // trick to get the noop tracer provider which is not exported from @openetelemetry/api
-    this.noopTracerProvider = new ProxyTracerProvider().getDelegate();
+    this.noopTracerProvider = this.globalProxyTracerProvider.getDelegate();
 
     this.instrumentationLibraries = this.instrumentations.map(
       (otelInstrumentation) => {
@@ -81,7 +86,7 @@ export class InstrumentationLibraries {
       : this.noopTracerProvider;
     // set global tracer provider to record traces from 3rd party instrumented libraries
     // or application manual instrumentation
-    trace.setGlobalTracerProvider(globalTracerProvider);
+    this.globalProxyTracerProvider.setDelegate(globalTracerProvider);
 
     // make the configs into a map by library name so it's quicker to find the right one
     const configsMap = new Map<string, InstrumentationLibraryConfiguration>(
