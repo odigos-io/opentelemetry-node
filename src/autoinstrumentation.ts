@@ -1,6 +1,6 @@
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 // For development, uncomment the following line to see debug logs
-// diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 diag.info("Starting Odigos OpenTelemetry auto-instrumentation agent");
 
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
@@ -32,15 +32,13 @@ import { VERSION } from "./version";
 import {
   BatchSpanProcessor,
   NodeTracerProvider,
+  SpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
 import * as semver from "semver";
 
 // not yet published in '@opentelemetry/semantic-conventions'
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
 const SEMRESATTRS_TELEMETRY_DISTRO_VERSION = "telemetry.distro.version";
-
-const opampServerHost = process.env.ODIGOS_OPAMP_SERVER_HOST;
-const instrumentationDeviceId = process.env.ODIGOS_INSTRUMENTATION_DEVICE_ID;
 
 const agentDescriptionIdentifyingAttributes = {
   [SEMRESATTRS_TELEMETRY_SDK_LANGUAGE]: TELEMETRYSDKLANGUAGEVALUES_NODEJS,
@@ -49,9 +47,24 @@ const agentDescriptionIdentifyingAttributes = {
   [SEMRESATTRS_PROCESS_PID]: process.pid,
 };
 
-const startOpenTelemetryAgent = (instrumentationDeviceId: string, opampServerHost: string) => {
+// used by native-community agent
+export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
+  return new BatchSpanProcessor(new OTLPTraceExporter());
+}
+
+// this function is meant to be called by the specific agent implementation.
+// it allows the agent to provide its own span processor, depending on the
+// agent implementation (for example - eBPF span processor for enterprise agent)
+export const startOpenTelemetryAgent = (distroName: string, instrumentationDeviceId: string, opampServerHost: string, spanProcessor: SpanProcessor) => {
+  if (!instrumentationDeviceId || !opampServerHost) {
+    diag.error(
+      "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST and ODIGOS_INSTRUMENTATION_DEVICE_ID"
+    );
+    return;  
+  }
+
   const staticResource = new Resource({
-    [SEMRESATTRS_TELEMETRY_DISTRO_NAME]: "odigos",
+    [SEMRESATTRS_TELEMETRY_DISTRO_NAME]: distroName,
     [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
   });
 
@@ -66,9 +79,6 @@ const startOpenTelemetryAgent = (instrumentationDeviceId: string, opampServerHos
       hostDetectorSync,
     ],
   });
-
-  // span processor
-  const spanProcessor = new BatchSpanProcessor(new OTLPTraceExporter());
 
   // context manager
   const ContextManager = semver.gte(process.versions.node, "14.8.0")
@@ -134,30 +144,4 @@ const startOpenTelemetryAgent = (instrumentationDeviceId: string, opampServerHos
   // - normal exit - the Node.js event loop has no additional work to perform
   // - fatal error - an uncaught exception is thrown and not handled by application code
   process.on("exit", () => shutdown("node.js runtime is exiting"));
-}
-
-
-
-if (!opampServerHost || !instrumentationDeviceId) {
-  diag.error(
-    "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST and ODIGOS_INSTRUMENTATION_DEVICE_ID"
-  );
-} else if (semver.lt(process.versions.node, "14.0.0")) {
-  diag.warn("OpenTelemetry Node.js SDK requires Node.js version 14 or higher, Skipping auto-instrumentation.", { nodeVersion: process.versions.node });
-
-  const opampClient = new OpAMPClientHttp({
-    instrumentationDeviceId: instrumentationDeviceId,
-    opAMPServerHost: opampServerHost,
-    agentDescriptionIdentifyingAttributes,
-    agentDescriptionNonIdentifyingAttributes: {},
-    onNewRemoteConfig: (remoteConfig: RemoteConfig) => {},
-    initialPackageStatues: [],
-  });
-  const errorMessage = `Node.js runtime version not supported by OpenTelemetry SDK. Found: '${process.versions.node}' supports: '>=14'`;
-  opampClient.start({
-    errorMessage,
-    status: SdkHealthStatus.UnsupportedRuntimeVersion,
-  });
-} else {
-  startOpenTelemetryAgent(instrumentationDeviceId, opampServerHost);
 }
