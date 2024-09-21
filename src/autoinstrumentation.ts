@@ -1,6 +1,6 @@
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 // For development, uncomment the following line to see debug logs
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
+// diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 diag.info("Starting Odigos OpenTelemetry auto-instrumentation agent");
 
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
