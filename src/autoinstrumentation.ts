@@ -65,7 +65,6 @@ const agentDescriptionIdentifyingAttributes = {
   ...k8sAttributes
 };
 
-console.log("agentDescriptionIdentifyingAttributes", agentDescriptionIdentifyingAttributes);  
 
 // used by native-community agent
 export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
