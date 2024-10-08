@@ -15,6 +15,9 @@ import {
   TELEMETRYSDKLANGUAGEVALUES_NODEJS,
   SEMRESATTRS_PROCESS_PID,
   SEMRESATTRS_PROCESS_RUNTIME_VERSION,
+  SEMRESATTRS_K8S_NAMESPACE_NAME,
+  SEMRESATTRS_K8S_POD_NAME,
+  SEMRESATTRS_K8S_CONTAINER_NAME,
 } from "@opentelemetry/semantic-conventions";
 import {
   Resource,
@@ -40,12 +43,28 @@ import * as semver from "semver";
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
 const SEMRESATTRS_TELEMETRY_DISTRO_VERSION = "telemetry.distro.version";
 
+const k8sAttributeMapping = {
+  ODIGOS_WORKLOAD_NAMESPACE: SEMRESATTRS_K8S_NAMESPACE_NAME,
+  ODIGOS_CONTAINER_NAME: SEMRESATTRS_K8S_CONTAINER_NAME,
+  ODIGOS_POD_NAME: SEMRESATTRS_K8S_POD_NAME
+};
+
+const k8sAttributes = Object.entries(k8sAttributeMapping)
+  .reduce<Record<string, string>>((acc, [envVar, attrKey]) => {
+    if (process.env[envVar]) {
+      acc[attrKey] = process.env[envVar] as string;
+    }
+    return acc;
+  }, {});
+
 const agentDescriptionIdentifyingAttributes = {
   [SEMRESATTRS_TELEMETRY_SDK_LANGUAGE]: TELEMETRYSDKLANGUAGEVALUES_NODEJS,
   [SEMRESATTRS_PROCESS_RUNTIME_VERSION]: process.versions.node,
   [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
   [SEMRESATTRS_PROCESS_PID]: process.pid,
+  ...k8sAttributes
 };
+
 
 // used by native-community agent
 export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
