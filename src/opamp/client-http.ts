@@ -101,7 +101,11 @@ export class OpAMPClientHttp {
     this.lastSdkHealthInfo = {
       status: SdkHealthStatus.Healthy,
     };
-    await this.sendAgentToServerMessage(sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo));
+    try {
+      await this.sendAgentToServerMessage(sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo));
+    } catch (error) {
+      this.logger.warn("Error sending SDK health message to OpAMP server", error);
+    }
   }
 
   // start the OpAMP client.
