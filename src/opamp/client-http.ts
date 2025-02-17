@@ -53,7 +53,6 @@ export class OpAMPClientHttp {
       baseURL: `http://${this.config.opAMPServerHost}`,
       headers: {
         "Content-Type": " application/x-protobuf",
-        "X-Odigos-DeviceId": config.instrumentationDeviceId,
       },
       timeout: 5000,
     });
@@ -80,7 +79,6 @@ export class OpAMPClientHttp {
     this.defaultRemoteConfig = {
       sdk: {
         remoteResource: new Resource({
-          [SEMRESATTRS_SERVICE_NAME]: this.config.instrumentationDeviceId,
           [SEMRESATTRS_SERVICE_INSTANCE_ID]: this.opampInstanceUidString,
         }),
         traceSignal: {
@@ -216,8 +214,7 @@ export class OpAMPClientHttp {
     }
 
     // if we got here, it means we run out of retries and did not return from the loop
-    // at this point we have no remote resource attributes, so we set the service name to the instrumentation device id
-    // which is the best we can do without the remote resource attributes
+    // at this point we have no remote resource attributes, so we will continue without them.
     this.logger.error(
       `Failed to get remote resource attributes from OpAMP server after retries, continuing without them`
     );
