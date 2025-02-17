@@ -74,10 +74,10 @@ export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
 // this function is meant to be called by the specific agent implementation.
 // it allows the agent to provide its own span processor, depending on the
 // agent implementation (for example - eBPF span processor for enterprise agent)
-export const startOpenTelemetryAgent = (distroName: string, instrumentationDeviceId: string, opampServerHost: string, spanProcessor: SpanProcessor) => {
-  if (!instrumentationDeviceId || !opampServerHost) {
+export const startOpenTelemetryAgent = (distroName: string, opampServerHost: string, spanProcessor: SpanProcessor) => {
+  if (!opampServerHost) {
     diag.error(
-      "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST and ODIGOS_INSTRUMENTATION_DEVICE_ID"
+      "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST"
     );
     return;  
   }
@@ -119,7 +119,6 @@ export const startOpenTelemetryAgent = (distroName: string, instrumentationDevic
   const localResource = staticResource.merge(detectorsResource);
 
   const opampClient = new OpAMPClientHttp({
-    instrumentationDeviceId: instrumentationDeviceId,
     opAMPServerHost: opampServerHost,
     agentDescriptionIdentifyingAttributes,
     agentDescriptionNonIdentifyingAttributes: {},
