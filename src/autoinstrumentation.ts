@@ -42,6 +42,8 @@ import * as semver from "semver";
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
 const SEMRESATTRS_TELEMETRY_DISTRO_VERSION = "telemetry.distro.version";
 
+const PROCESS_VPID = "process.vpid"
+
 const k8sAttributeMapping = {
   ODIGOS_WORKLOAD_NAMESPACE: SEMRESATTRS_K8S_NAMESPACE_NAME,
   ODIGOS_CONTAINER_NAME: SEMRESATTRS_K8S_CONTAINER_NAME,
@@ -60,7 +62,7 @@ const agentDescriptionIdentifyingAttributes = {
   [SEMRESATTRS_TELEMETRY_SDK_LANGUAGE]: TELEMETRYSDKLANGUAGEVALUES_NODEJS,
   [SEMRESATTRS_PROCESS_RUNTIME_VERSION]: process.versions.node,
   [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
-  ["process.vpid"]: process.pid,
+  [PROCESS_VPID]: process.pid,
   ...k8sAttributes
 };
 
@@ -123,7 +125,8 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
     agentDescriptionNonIdentifyingAttributes: {},
     onNewRemoteConfig: (remoteConfig: RemoteConfig) => {
       const resource = localResource
-        .merge(remoteConfig.sdk.remoteResource);
+        .merge(remoteConfig.sdk.remoteResource)
+        .merge(new Resource({ [PROCESS_VPID]: process.pid }));
 
       // tracer provider
       const tracerProvider = new NodeTracerProvider({
