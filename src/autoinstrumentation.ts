@@ -42,6 +42,7 @@ import * as semver from "semver";
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
 const SEMRESATTRS_TELEMETRY_DISTRO_VERSION = "telemetry.distro.version";
 
+// This attribute is necessary for our use case to track process-specific information that is not covered by OpenTelemetry’s built-in attributes.
 const PROCESS_VPID = "process.vpid"
 
 const k8sAttributeMapping = {
