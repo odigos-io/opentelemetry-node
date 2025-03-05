@@ -1,6 +1,5 @@
 import { Resource, processDetectorSync } from "@opentelemetry/resources";
-
-const PROCESS_PID_KEY = "process.pid";
+import { SEMRESATTRS_PROCESS_PID } from "@opentelemetry/semantic-conventions";
 
 export class OdigosProcessDetector {
   detect() {
@@ -9,7 +8,7 @@ export class OdigosProcessDetector {
 
     // Clone attributes and remove "process.id"
     const filteredAttributes = { ...resource.attributes };
-    delete filteredAttributes[PROCESS_PID_KEY];
+    delete filteredAttributes[SEMRESATTRS_PROCESS_PID];
     
     return new Resource(filteredAttributes);
   }
