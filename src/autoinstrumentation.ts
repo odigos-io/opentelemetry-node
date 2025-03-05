@@ -37,6 +37,7 @@ import {
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
 import * as semver from "semver";
+import { OdigosProcessDetector } from "./OdigosProcessDetector";
 
 // not yet published in '@opentelemetry/semantic-conventions'
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
@@ -87,6 +88,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
   const staticResource = new Resource({
     [SEMRESATTRS_TELEMETRY_DISTRO_NAME]: distroName,
     [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
+    [PROCESS_VPID]: process.pid 
   });
 
   const detectorsResource = detectResourcesSync({
@@ -95,7 +97,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
       // we don't populate it at the moment, but if the user set anything, this detector will pick it up
       envDetectorSync,
       // info about executable, runtime, command, etc
-      processDetectorSync,
+      new OdigosProcessDetector(),
       // host name, and arch
       hostDetectorSync,
     ],
@@ -126,8 +128,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
     agentDescriptionNonIdentifyingAttributes: {},
     onNewRemoteConfig: (remoteConfig: RemoteConfig) => {
       const resource = localResource
-        .merge(remoteConfig.sdk.remoteResource)
-        .merge(new Resource({ [PROCESS_VPID]: process.pid }));
+        .merge(remoteConfig.sdk.remoteResource);
 
       // tracer provider
       const tracerProvider = new NodeTracerProvider({
