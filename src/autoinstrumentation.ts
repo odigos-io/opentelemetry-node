@@ -13,7 +13,6 @@ import { OpAMPClientHttp, RemoteConfig, SdkHealthStatus } from "./opamp";
 import {
   SEMRESATTRS_TELEMETRY_SDK_LANGUAGE,
   TELEMETRYSDKLANGUAGEVALUES_NODEJS,
-  SEMRESATTRS_PROCESS_PID,
   SEMRESATTRS_PROCESS_RUNTIME_VERSION,
   SEMRESATTRS_K8S_NAMESPACE_NAME,
   SEMRESATTRS_K8S_POD_NAME,
@@ -38,10 +37,14 @@ import {
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
 import * as semver from "semver";
+import { OdigosProcessDetector } from "./OdigosProcessDetector";
 
 // not yet published in '@opentelemetry/semantic-conventions'
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
 const SEMRESATTRS_TELEMETRY_DISTRO_VERSION = "telemetry.distro.version";
+
+// This attribute is necessary for our use case to track process-specific information that is not covered by OpenTelemetry’s built-in attributes.
+const PROCESS_VPID = "process.vpid"
 
 const k8sAttributeMapping = {
   ODIGOS_WORKLOAD_NAMESPACE: SEMRESATTRS_K8S_NAMESPACE_NAME,
@@ -61,7 +64,7 @@ const agentDescriptionIdentifyingAttributes = {
   [SEMRESATTRS_TELEMETRY_SDK_LANGUAGE]: TELEMETRYSDKLANGUAGEVALUES_NODEJS,
   [SEMRESATTRS_PROCESS_RUNTIME_VERSION]: process.versions.node,
   [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
-  [SEMRESATTRS_PROCESS_PID]: process.pid,
+  [PROCESS_VPID]: process.pid,
   ...k8sAttributes
 };
 
@@ -84,7 +87,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
 
   const staticResource = new Resource({
     [SEMRESATTRS_TELEMETRY_DISTRO_NAME]: distroName,
-    [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
+    [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION
   });
 
   const detectorsResource = detectResourcesSync({
@@ -93,7 +96,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
       // we don't populate it at the moment, but if the user set anything, this detector will pick it up
       envDetectorSync,
       // info about executable, runtime, command, etc
-      processDetectorSync,
+      new OdigosProcessDetector(),
       // host name, and arch
       hostDetectorSync,
     ],
