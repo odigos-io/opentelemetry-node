@@ -1,8 +1,8 @@
 import { Resource, processDetectorSync } from "@opentelemetry/resources";
 import { SEMRESATTRS_PROCESS_PID } from "@opentelemetry/semantic-conventions";
 
+export const PROCESS_VPID = "process.vpid";
 
-const PROCESS_VPID = "process.vpid";
 export class OdigosProcessDetector {
   detect() {
     // Run the default process detector

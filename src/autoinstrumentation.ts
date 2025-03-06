@@ -37,14 +37,12 @@ import {
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
 import * as semver from "semver";
-import { OdigosProcessDetector } from "./OdigosProcessDetector";
+import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
 
 // not yet published in '@opentelemetry/semantic-conventions'
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
 const SEMRESATTRS_TELEMETRY_DISTRO_VERSION = "telemetry.distro.version";
 
-// This attribute is necessary for our use case to track process-specific information that is not covered by OpenTelemetry’s built-in attributes.
-const PROCESS_VPID = "process.vpid"
 
 const k8sAttributeMapping = {
   ODIGOS_WORKLOAD_NAMESPACE: SEMRESATTRS_K8S_NAMESPACE_NAME,
