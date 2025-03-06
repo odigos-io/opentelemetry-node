@@ -87,8 +87,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
 
   const staticResource = new Resource({
     [SEMRESATTRS_TELEMETRY_DISTRO_NAME]: distroName,
-    [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
-    [PROCESS_VPID]: process.pid 
+    [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION
   });
 
   const detectorsResource = detectResourcesSync({
