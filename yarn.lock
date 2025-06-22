@@ -7,10 +7,10 @@
   resolved "https://registry.yarnpkg.com/@bufbuild/protobuf/-/protobuf-1.10.0.tgz#1a67ac889c2d464a3492b3e54c38f80517963b16"
   integrity sha512-QDdVFLoN93Zjg36NoQPZfsVH9tZew7wKDKyV5qRdj8ntT4wQCOradQjRaTdwMhWUYsgKsvCINKKm87FdEk96Ag==
 
-"@odigos/instrumentation-kafkajs@^0.0.4":
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/@odigos/instrumentation-kafkajs/-/instrumentation-kafkajs-0.0.4.tgz#71bb55ecdc715e48f63b904062eb8fb2658f9ec7"
-  integrity sha512-7PuyurzoNYSytOlnvsAbmVUkE7zgj2VWr1UUviRLK6V+Vju4CMpLxoyWxDQkXnDduOyau8NXWdyMJzUqgoA/Iw==
+"@odigos/instrumentation-kafkajs@^0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@odigos/instrumentation-kafkajs/-/instrumentation-kafkajs-0.0.5.tgz#c4bd0ac493e7814cc64ce6c4bf080e858b9863ee"
+  integrity sha512-ABEsSH0+vouoWJlCL+Z6R4UXlrCRZrxGvQDOxhngpgY1WaiHkbiC6W+XvgiPl+MtlaNGkObx7wo1Vds73p/hlw==
   dependencies:
     "@opentelemetry/instrumentation" "^0.54.0"
     "@opentelemetry/semantic-conventions" "1.27.0"
