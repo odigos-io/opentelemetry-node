@@ -163,4 +163,8 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
   // - normal exit - the Node.js event loop has no additional work to perform
   // - fatal error - an uncaught exception is thrown and not handled by application code
   process.on("exit", () => shutdown("node.js runtime is exiting"));
+
+  return {
+    instrumentations: instrumentationLibraries.getInstrumentations(),
+  }
 }

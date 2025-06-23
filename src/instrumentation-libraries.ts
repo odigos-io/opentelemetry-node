@@ -112,4 +112,8 @@ export class InstrumentationLibraries {
       );
     }
   }
+
+  public getInstrumentations(): Instrumentation[] {
+    return this.instrumentations;
+  }
 }
