@@ -19,11 +19,11 @@ const instrumentations: [string, string, any?][] = [
   ["@opentelemetry/instrumentation-graphql", "GraphQLInstrumentation", {
     // graphql instrumentation will create a lot of spans by default.
     // some of them are just trivial resolvers like getting a string value as a property of an object.
-    // they are wayyyy to verbose and we don't need them.
+    // they are way too verbose and we don't need them.
     // this option will remove those trivial resolver spans.
     ignoreTrivialResolveSpans: true, 
 
-    // reduce the number of spans resolver 
+    // show list resolver as a single span to reduce the number of spans
     mergeItems: true,
   }],
   ["@opentelemetry/instrumentation-grpc", "GrpcInstrumentation"],
