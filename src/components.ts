@@ -1,7 +1,7 @@
 import { Instrumentation } from "@opentelemetry/instrumentation";
 import { diag } from "@opentelemetry/api";
 
-const instrumentations = [
+const instrumentations: [string, string, any?][] = [
   ["@opentelemetry/instrumentation-amqplib", "AmqplibInstrumentation"],
   ["@opentelemetry/instrumentation-aws-sdk", "AwsInstrumentation"],
   ["@opentelemetry/instrumentation-bunyan", "BunyanInstrumentation"],
@@ -16,7 +16,16 @@ const instrumentations = [
   ["@opentelemetry/instrumentation-fastify", "FastifyInstrumentation"],
   ["@opentelemetry/instrumentation-fs", "FsInstrumentation"],
   ["@opentelemetry/instrumentation-generic-pool", "GenericPoolInstrumentation"],
-  ["@opentelemetry/instrumentation-graphql", "GraphQLInstrumentation"],
+  ["@opentelemetry/instrumentation-graphql", "GraphQLInstrumentation", {
+    // graphql instrumentation will create a lot of spans by default.
+    // some of them are just trivial resolvers like getting a string value as a property of an object.
+    // they are wayyyy to verbose and we don't need them.
+    // this option will remove those trivial resolver spans.
+    ignoreTrivialResolveSpans: true, 
+
+    // reduce the number of spans resolver 
+    mergeItems: true,
+  }],
   ["@opentelemetry/instrumentation-grpc", "GrpcInstrumentation"],
   ["@opentelemetry/instrumentation-hapi", "HapiInstrumentation"],
   ["@opentelemetry/instrumentation-http", "HttpInstrumentation"],
@@ -44,9 +53,10 @@ const instrumentations = [
   ["@opentelemetry/instrumentation-winston", "WinstonInstrumentation"],
 ];
 
-const safeRequire = (
+const safeCreateInstrumentationLibrary = (
   npmPackageName: string,
-  importName: string
+  importName: string,
+  instrumentationConfig: any
 ): Instrumentation | undefined => {
   try {
     const moduleExports = require(npmPackageName);
@@ -58,7 +68,7 @@ const safeRequire = (
       );
       return undefined;
     }
-    const instrumentation = new instrumentationClass();
+    const instrumentation = new instrumentationClass(instrumentationConfig);
     return instrumentation;
   } catch (e) {
     diag.error("Failed to require and instantiate an instrumentation class", {
@@ -71,8 +81,8 @@ const safeRequire = (
 
 export const getNodeAutoInstrumentations = (): Instrumentation[] => {
   return instrumentations
-    .map(([npmPackageName, importName]) =>
-      safeRequire(npmPackageName, importName)
+    .map(([npmPackageName, importName, config]) =>
+      safeCreateInstrumentationLibrary(npmPackageName, importName, config)
     )
     .filter((instrumentations) => !!instrumentations);
 };
