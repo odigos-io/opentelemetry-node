@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.3](https://github.com/odigos-io/opentelemetry-node/compare/opentelemetry-node-v0.0.2...opentelemetry-node-v0.0.3) (2025-09-03)
+
+
+### Reverts
+
+* unintended file ([b5a1347](https://github.com/odigos-io/opentelemetry-node/commit/b5a1347c2f36082a93398ce9cc1cd522fa4f3b63))
+
 ## [0.0.2](https://github.com/odigos-io/opentelemetry-node/compare/opentelemetry-node-v0.0.1...opentelemetry-node-v0.0.2) (2025-09-03)
 
 
