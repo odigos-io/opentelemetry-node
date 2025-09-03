@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create or Update Release PR
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_BOT_TOKEN }}
+
+      # The logic below happens once the release PR is merged
+      - name: Set up Docker Buildx
+        if: ${{ steps.release.outputs.release_created }}
+        uses: docker/setup-buildx-action@v3
+      - name: Set up QEMU
+        if: ${{ steps.release.outputs.release_created }}
+        uses: docker/setup-qemu-action@v3
+      - name: Configure AWS credentials
+        if: ${{ steps.release.outputs.release_created }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+            role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-ecr-upload
+            aws-region: 'us-east-1'
+      - name: Log in to Amazon ECR
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          aws ecr-public get-login-password --region us-east-1 \
+          | docker login --username AWS --password-stdin public.ecr.aws
+
+      - name: Build and push Docker image
+        if: ${{ steps.release.outputs.release_created }}
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: public.ecr.aws/odigos/agents/nodejs-community:${{ steps.release.outputs.version }}
