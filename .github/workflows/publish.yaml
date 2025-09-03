@@ -52,4 +52,5 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: AGENT_VERSION=${{ steps.release.outputs.version }}
           tags: public.ecr.aws/odigos/agents/nodejs-community:${{ steps.release.outputs.version }}
