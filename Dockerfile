@@ -1,8 +1,10 @@
 FROM node:22 AS nodejs-community-build
+ARG AGENT_VERSION
 WORKDIR /opentelemetry-node
 COPY package.json yarn.lock .
 RUN yarn install --frozen-lockfile
 COPY . .
+RUN echo "export const VERSION = \"$AGENT_VERSION\";" > ./src/version.ts
 RUN yarn compile
 
 # this build step is only for the production node_modules.
