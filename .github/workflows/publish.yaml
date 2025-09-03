@@ -5,6 +5,11 @@ on:
     branches:
       - "main"
   workflow_dispatch:
+    inputs:
+        release-as:
+          description: "Force release as a specific version"
+          required: false
+          type: string    
 
 permissions:
   contents: write
@@ -26,6 +31,7 @@ jobs:
         id: release
         with:
           token: ${{ secrets.RELEASE_BOT_TOKEN }}
+          release-as: ${{ github.event.inputs.release-as }}
 
       # The logic below happens once the release PR is merged
       - name: Set up Docker Buildx
