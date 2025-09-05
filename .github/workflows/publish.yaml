@@ -1,24 +1,22 @@
-name: Release
+name: Release Please
+
+env:
+  ECR_REPO: public.ecr.aws/odigos/agents/nodejs-community
 
 on:
   push:
     branches:
       - "main"
-  workflow_dispatch:
-    inputs:
-        release-as:
-          description: "Force release as a specific version"
-          required: false
-          type: string    
-
-permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
 
 jobs:
-  release-job:
+  release-pr:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    permissions:
+      pull-requests: write
+      contents: write
 
     steps:
       - name: Check out code
@@ -31,32 +29,41 @@ jobs:
         id: release
         with:
           token: ${{ secrets.RELEASE_BOT_TOKEN }}
-          release-as: ${{ github.event.inputs.release-as }}
+          config-file: release-please-config.json
 
-      # The logic below happens once the release PR is merged
+  release:
+    needs: release-pr
+    if: needs.release-pr.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
-        if: ${{ steps.release.outputs.release_created }}
         uses: docker/setup-buildx-action@v3
+
       - name: Set up QEMU
-        if: ${{ steps.release.outputs.release_created }}
         uses: docker/setup-qemu-action@v3
+
       - name: Configure AWS credentials
-        if: ${{ steps.release.outputs.release_created }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
-            role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-ecr-upload
-            aws-region: 'us-east-1'
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-ecr-upload
+          aws-region: 'us-east-1'
+
       - name: Log in to Amazon ECR
-        if: ${{ steps.release.outputs.release_created }}
         run: |
           aws ecr-public get-login-password --region us-east-1 \
           | docker login --username AWS --password-stdin public.ecr.aws
 
       - name: Build and push Docker image
-        if: ${{ steps.release.outputs.release_created }}
         uses: docker/build-push-action@v6
         with:
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: AGENT_VERSION=${{ steps.release.outputs.tag_name }}
-          tags: public.ecr.aws/odigos/agents/nodejs-community:${{ steps.release.outputs.tag_name }}
+          build-args: AGENT_VERSION=${{ needs.release-pr.outputs.tag_name }}
+          tags: ${{ env.ECR_REPO }}:${{ needs.release-pr.outputs.tag_name }},${{ env.ECR_REPO }}:latest
