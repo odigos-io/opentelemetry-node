@@ -67,3 +67,12 @@ jobs:
           push: true
           build-args: AGENT_VERSION=${{ needs.release-pr.outputs.tag_name }}
           tags: ${{ env.ECR_REPO }}:${{ needs.release-pr.outputs.tag_name }},${{ env.ECR_REPO }}:latest
+
+      - name: Notify Slack
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with: 
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Published a new release of OpenTelemetry Node.js Community Agent"
+          failure-description: "ERROR: Failed to publish a new release of OpenTelemetry Node.js Community Agent"
+          tag: ${{ needs.release-pr.outputs.tag_name }}
+  

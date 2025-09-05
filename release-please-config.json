@@ -2,6 +2,7 @@
     "bump-minor-pre-major": true,
     "bump-patch-for-minor-pre-major": true,
     "include-v-in-tag": true,
+    "bootstrap-sha": "0cf39da967f6bfa22be9ce619655d5eaa492d048",
     "packages": {
         ".": {
             "release-type": "node",
