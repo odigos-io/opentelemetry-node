@@ -79,8 +79,24 @@ const safeCreateInstrumentationLibrary = (
   }
 };
 
+const getDisabledInstrumentations = (): Set<string> => {
+  const disabledInstrumentationsEnv = process.env.ODIGOS_DISABLED_INSTRUMENTATION_LIBRARIES;
+  const disabledInstrumentations = disabledInstrumentationsEnv ? disabledInstrumentationsEnv.split(",") : [];
+  const normalizedDisabledInstrumentations =  disabledInstrumentations.map((instrumentation) => {
+    if (instrumentation.startsWith("@opentelemetry/instrumentation-")) {
+      return instrumentation;
+    } else {
+      return `@opentelemetry/instrumentation-${instrumentation}`;
+    }
+  });
+
+  return new Set(normalizedDisabledInstrumentations);
+};
+
 export const getNodeAutoInstrumentations = (): Instrumentation[] => {
+  const disabledInstrumentations = getDisabledInstrumentations();
   return instrumentations
+    .filter(([npmPackageName]) => !disabledInstrumentations.has(npmPackageName))
     .map(([npmPackageName, importName, config]) =>
       safeCreateInstrumentationLibrary(npmPackageName, importName, config)
     )
