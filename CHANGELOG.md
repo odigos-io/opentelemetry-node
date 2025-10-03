@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.5](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.4...v0.0.5) (2025-09-29)
+
+
+### Features
+
+* add env variable to disable instrumentations ([#38](https://github.com/odigos-io/opentelemetry-node/issues/38)) ([96b8069](https://github.com/odigos-io/opentelemetry-node/commit/96b8069ef05150908c6500b6bfe5d6046eca3da5))
+
 ## [0.0.4](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.3...v0.0.4) (2025-09-06)
 
 
