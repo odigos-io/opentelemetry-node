@@ -87,6 +87,7 @@ export class OpAMPClientHttp {
         },
       },
       instrumentationLibraries: [],
+      mainConfig: {},
     };
   }
 

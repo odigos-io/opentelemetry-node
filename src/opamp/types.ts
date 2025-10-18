@@ -42,6 +42,7 @@ export interface InstrumentationLibraryConfiguration {
 export type RemoteConfig = {
   sdk: SdkConfiguration;
   instrumentationLibraries: InstrumentationLibraryConfiguration[];
+  mainConfig: any;
 };
 
 // these enums are agreed upon with the OpAMP server.
