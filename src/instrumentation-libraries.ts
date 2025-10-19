@@ -78,6 +78,7 @@ export class InstrumentationLibraries {
   public onNewRemoteConfig(
     configs: InstrumentationLibraryConfiguration[],
     traceSignal: TraceSignalGeneralConfig,
+    mainConfig: any,
     enabledTracerProvider: TracerProvider
   ) {
     // it will happen when the pipeline is not setup to receive spans
@@ -110,6 +111,25 @@ export class InstrumentationLibraries {
       odigosInstrumentation.otelInstrumentation.setTracerProvider(
         tracerProviderInUse
       );
+
+      const instrumentationLibraryName = odigosInstrumentation.otelInstrumentation.instrumentationName;
+      if (instrumentationLibraryName === '@opentelemetry/instrumentation-http') {
+        const headerKeys = mainConfig?.headersCollection?.headerKeys;
+        if (headerKeys) {
+          odigosInstrumentation.otelInstrumentation.setConfig({
+            headersToSpanAttributes: {
+              server: {
+                requestHeaders: headerKeys,
+                responseHeaders: headerKeys,
+              },
+              client: {
+                requestHeaders: headerKeys,
+                responseHeaders: headerKeys,
+              },
+            },
+          } as any);
+        }
+      }
     }
   }
 
