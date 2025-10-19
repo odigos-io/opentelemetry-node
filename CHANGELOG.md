@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.6](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.5...v0.0.6) (2025-10-19)
+
+
+### Features
+
+* http headers collection ([#40](https://github.com/odigos-io/opentelemetry-node/issues/40)) ([77be105](https://github.com/odigos-io/opentelemetry-node/commit/77be10579ede9f7d94912930816615a1d983fbb8))
+
 ## [0.0.5](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.4...v0.0.5) (2025-09-29)
 
 
