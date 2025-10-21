@@ -1,6 +1,6 @@
 {
   "name": "@odigos/opentelemetry-node",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Odigos distribution of OpenTelemetry for Node.js",
   "main": "build/src/autoinstrumentation.js",
   "repository": "https://github.com/odigos-io/opentelemetry-node",
