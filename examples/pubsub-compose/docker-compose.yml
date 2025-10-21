@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
+    command: ["gcloud", "beta", "emulators", "pubsub", "start", "--host-port=0.0.0.0:8085"]
+    ports:
+      - "8085:8085"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    ports:
+      - "16686:16686"
+      - "14250:14250"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.103.0
+    command: ["--config=/etc/otelcol/collector.yaml"]
+    volumes:
+      - ./collector.yaml:/etc/otelcol/collector.yaml:ro
+    ports:
+      - "4318:4318"
+    depends_on:
+      - jaeger
+
+  setup:
+    build:
+      context: ../..
+      dockerfile: examples/pubsub-compose/setup/Dockerfile
+    environment:
+      - PUBSUB_EMULATOR_HOST=pubsub:8085
+      - DEMO_TOPIC=demo-topic
+      - DEMO_SUBSCRIPTION=demo-sub
+      - GCLOUD_PROJECT=demo-project
+      - SERVICE_NAME=setup
+    depends_on:
+      - pubsub
+      - otel-collector
+    restart: "no"
+
+  producer:
+    build:
+      context: ../..
+      dockerfile: examples/pubsub-compose/producer/Dockerfile
+    environment:
+      - PUBSUB_EMULATOR_HOST=pubsub:8085
+      - DEMO_TOPIC=demo-topic
+      - GCLOUD_PROJECT=demo-project
+      - SERVICE_NAME=producer
+      - OTEL_PUBSUB_SPANS=1
+      - OTEL_PUBSUB_PROPAGATION=1
+    ports:
+      - "8081:8080"
+    depends_on:
+      pubsub:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+      setup:
+        condition: service_completed_successfully
+
+  consumer:
+    build:
+      context: ../..
+      dockerfile: examples/pubsub-compose/consumer/Dockerfile
+    environment:
+      - PUBSUB_EMULATOR_HOST=pubsub:8085
+      - DEMO_SUBSCRIPTION=demo-sub
+      - GCLOUD_PROJECT=demo-project
+      - SERVICE_NAME=consumer
+      - OTEL_PUBSUB_SPANS=1
+      - OTEL_PUBSUB_PROPAGATION=1
+    depends_on:
+      pubsub:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+      setup:
+        condition: service_completed_successfully
+
+

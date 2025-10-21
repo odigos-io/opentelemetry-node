@@ -1,5 +1,6 @@
 import { Instrumentation } from "@opentelemetry/instrumentation";
 import { diag } from "@opentelemetry/api";
+import { PubSubInstrumentation } from "./instrumentations/pubsub-instrumentation";
 
 const instrumentations: [string, string, any?][] = [
   ["@opentelemetry/instrumentation-amqplib", "AmqplibInstrumentation"],
@@ -82,23 +83,39 @@ const safeCreateInstrumentationLibrary = (
 const getDisabledInstrumentations = (): Set<string> => {
   const disabledInstrumentationsEnv = process.env.ODIGOS_DISABLED_INSTRUMENTATION_LIBRARIES;
   const disabledInstrumentations = disabledInstrumentationsEnv ? disabledInstrumentationsEnv.split(",") : [];
-  const normalizedDisabledInstrumentations =  disabledInstrumentations.map((instrumentation) => {
-    if (instrumentation.startsWith("@opentelemetry/instrumentation-")) {
-      return instrumentation;
-    } else {
-      return `@opentelemetry/instrumentation-${instrumentation}`;
-    }
-  });
+  const normalizedDisabledInstrumentations =  disabledInstrumentations
+    .flatMap((instrumentation) => {
+      if (instrumentation.startsWith("@opentelemetry/instrumentation-") || instrumentation.startsWith("@odigos/instrumentation-")) {
+        return [instrumentation];
+      } else {
+        // support disabling both community and odigos-prefixed names
+        return [
+          `@opentelemetry/instrumentation-${instrumentation}`,
+          `@odigos/instrumentation-${instrumentation}`,
+        ];
+      }
+    });
 
   return new Set(normalizedDisabledInstrumentations);
 };
 
 export const getNodeAutoInstrumentations = (): Instrumentation[] => {
   const disabledInstrumentations = getDisabledInstrumentations();
-  return instrumentations
+  const list = instrumentations
     .filter(([npmPackageName]) => !disabledInstrumentations.has(npmPackageName))
     .map(([npmPackageName, importName, config]) =>
       safeCreateInstrumentationLibrary(npmPackageName, importName, config)
     )
     .filter((instrumentations) => !!instrumentations);
+  // Add Odigos Pub/Sub instrumentation unless explicitly disabled
+  if (!disabledInstrumentations.has("@odigos/instrumentation-gcp-pubsub") &&
+      !disabledInstrumentations.has("@opentelemetry/instrumentation-gcp-pubsub") &&
+      !disabledInstrumentations.has("@opentelemetry/instrumentation-pubsub")) {
+    try {
+      list.push(new PubSubInstrumentation());
+    } catch (e) {
+      diag.error("Failed to initialize PubSubInstrumentation", e as any);
+    }
+  }
+  return list as unknown as Instrumentation[];
 };
