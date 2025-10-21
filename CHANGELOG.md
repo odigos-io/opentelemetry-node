@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.7](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.6...v0.0.7) (2025-10-21)
+
+
+### Features
+
+* RUN-169 GCP Pubsub Instrumentation ([#42](https://github.com/odigos-io/opentelemetry-node/issues/42)) ([ea1cb7b](https://github.com/odigos-io/opentelemetry-node/commit/ea1cb7b458559b8d30b9050e0d1ba3cd4c6336c1))
+
 ## [0.0.6](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.5...v0.0.6) (2025-10-19)
 
 
