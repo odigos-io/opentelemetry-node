@@ -81,13 +81,12 @@ export class OpAMPClientHttp {
         remoteResource: new Resource({
           [SEMRESATTRS_SERVICE_INSTANCE_ID]: this.opampInstanceUidString,
         }),
-        traceSignal: {
-          enabled: true,
-          defaultEnabledValue: true,
-        },
       },
       instrumentationLibraries: [],
       mainConfig: {},
+      containerConfig: {
+        traces: {}, // default (if remote config is not set) is to collect traces
+      },
     };
   }
 
@@ -255,7 +254,6 @@ export class OpAMPClientHttp {
       this.logger.info(
         "Got remote configuration from OpAMP server",
         remoteConfig.sdk.remoteResource.attributes,
-        { traceSignal: remoteConfig.sdk.traceSignal }
       );
       this.config.onNewRemoteConfig(remoteConfig);
       this.remoteConfigStatus = new RemoteConfigStatus({

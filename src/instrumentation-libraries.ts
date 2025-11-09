@@ -13,21 +13,10 @@ type OdigosInstrumentation = {
 };
 
 const calculateLibraryEnabled = (
-  traceSignal: TraceSignalGeneralConfig,
   instrumentationLibraryEnabled: boolean | undefined,
 ): boolean => {
-  // if the signal is disabled globally, no library should be enabled
-  if (!traceSignal.enabled) {
-    return false;
-  }
-
-  // if there is a specific configuration for this library, use it
-  if (instrumentationLibraryEnabled != null) {
-    return instrumentationLibraryEnabled;
-  }
-
-  // if there is no remote config to enable/disable this library, use the default
-  return traceSignal.defaultEnabledValue;
+  // this will be enhanced in the future as we consolidate more config options into the container config.
+  return instrumentationLibraryEnabled ?? true;
 };
 
 export class InstrumentationLibraries {
@@ -77,17 +66,12 @@ export class InstrumentationLibraries {
 
   public onNewRemoteConfig(
     configs: InstrumentationLibraryConfiguration[],
-    traceSignal: TraceSignalGeneralConfig,
     mainConfig: any,
-    enabledTracerProvider: TracerProvider
+    tracerProvider: TracerProvider
   ) {
-    // it will happen when the pipeline is not setup to receive spans
-    const globalTracerProvider = traceSignal.enabled
-      ? enabledTracerProvider
-      : this.noopTracerProvider;
     // set global tracer provider to record traces from 3rd party instrumented libraries
     // or application manual instrumentation
-    this.globalProxyTracerProvider.setDelegate(globalTracerProvider);
+    this.globalProxyTracerProvider.setDelegate(tracerProvider);
 
     // make the configs into a map by library name so it's quicker to find the right one
     const configsMap = new Map<string, InstrumentationLibraryConfiguration>(
@@ -102,11 +86,10 @@ export class InstrumentationLibraries {
         odigosInstrumentation.otelInstrumentation.instrumentationName
       );
       const enabled = calculateLibraryEnabled(
-        traceSignal,
         instrumentationLibraryConfig?.traces?.enabled,
       );
       const tracerProviderInUse = enabled
-        ? enabledTracerProvider
+        ? tracerProvider
         : this.noopTracerProvider;
       odigosInstrumentation.otelInstrumentation.setTracerProvider(
         tracerProviderInUse
@@ -135,5 +118,9 @@ export class InstrumentationLibraries {
 
   public getInstrumentations(): Instrumentation[] {
     return this.instrumentations;
+  }
+
+  public getNoopTracerProvider(): TracerProvider {
+    return this.noopTracerProvider;
   }
 }

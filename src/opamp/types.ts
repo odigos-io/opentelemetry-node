@@ -2,6 +2,7 @@ import { Attributes } from "@opentelemetry/api";
 import { Resource } from "@opentelemetry/resources";
 import { PackageStatus } from "./generated/opamp_pb";
 import { PartialMessage } from "@bufbuild/protobuf";
+import { ContainerConfig } from "../config";
 
 export interface OpAMPClientHttpConfig {
   opAMPServerHost: string; // the host + (optional) port of the OpAMP server to connect over http://
@@ -24,7 +25,6 @@ export interface TraceSignalGeneralConfig {
 
 export interface SdkConfiguration {
   remoteResource: Resource; // parse resource object
-  traceSignal: TraceSignalGeneralConfig;
 }
 
 // InstrumentationLibrary Remote Configuration
@@ -43,6 +43,7 @@ export type RemoteConfig = {
   sdk: SdkConfiguration;
   instrumentationLibraries: InstrumentationLibraryConfiguration[];
   mainConfig: any;
+  containerConfig: ContainerConfig;
 };
 
 // these enums are agreed upon with the OpAMP server.
