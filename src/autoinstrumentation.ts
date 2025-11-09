@@ -1,4 +1,4 @@
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
+import { diag, DiagConsoleLogger, DiagLogLevel, TracerProvider } from "@opentelemetry/api";
 // For development, uncomment the following line to see debug logs
 // diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 diag.info("Starting Odigos OpenTelemetry auto-instrumentation agent");
@@ -38,6 +38,8 @@ import {
 } from "@opentelemetry/sdk-trace-node";
 import * as semver from "semver";
 import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
+import { TimedWallIdGenerator } from "./id-generator/timedwall";
+import { idGeneratorFromConfig } from "./id-generator";
 
 // not yet published in '@opentelemetry/semantic-conventions'
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
@@ -127,14 +129,23 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
       const resource = localResource
         .merge(remoteConfig.sdk.remoteResource);
 
-      // tracer provider
-      const tracerProvider = new NodeTracerProvider({
-        resource,
-      });
-      tracerProvider.addSpanProcessor(spanProcessor);
+      // set the tracer provider based on if traces are enabled or not.
+      let tracerProvider: TracerProvider;
+      if (remoteConfig.containerConfig.traces) {
+        const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
+        const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
+          const nodeTracerProvider = new NodeTracerProvider({
+          resource,
+          idGenerator,
+        });
+        nodeTracerProvider.addSpanProcessor(spanProcessor);
+        tracerProvider = nodeTracerProvider;
+      } else {
+        tracerProvider = instrumentationLibraries.getNoopTracerProvider();
+      }
+
       instrumentationLibraries.onNewRemoteConfig(
         remoteConfig.instrumentationLibraries,
-        remoteConfig.sdk.traceSignal,
         remoteConfig.mainConfig,
         tracerProvider
       );

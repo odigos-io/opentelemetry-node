@@ -4,6 +4,7 @@ import { InstrumentationLibraryConfiguration, RemoteConfig } from "./types";
 import { keyValuePairsToOtelAttributes } from "./utils";
 import { SEMRESATTRS_SERVICE_INSTANCE_ID } from "@opentelemetry/semantic-conventions";
 import { OpAMPSdkConfiguration } from "./opamp-types";
+import { ContainerConfig } from "../config";
 
 export const extractRemoteConfigFromResponse = (
   agentRemoteConfig: AgentRemoteConfig,
@@ -55,6 +56,18 @@ export const extractRemoteConfigFromResponse = (
     throw new Error("error parsing main remote config");
   }
 
+  const containerConfigSection = agentRemoteConfig.config?.configMap["container_config"];
+  if (!containerConfigSection || !containerConfigSection.body) {
+    throw new Error("missing container config");
+  }
+  const containerConfigBody = containerConfigSection.body.toString();
+  let containerConfig: ContainerConfig;
+  try {
+    containerConfig = JSON.parse(containerConfigBody) as ContainerConfig;
+  } catch (error) {
+    throw new Error("error parsing container config");
+  }
+
   const remoteResource = new Resource(
     keyValuePairsToOtelAttributes([
       ...sdkConfig.remoteResourceAttributes,
@@ -68,9 +81,9 @@ export const extractRemoteConfigFromResponse = (
   return {
     sdk: {
       remoteResource,
-      traceSignal: sdkConfig.traceSignal,
     },
     instrumentationLibraries: instrumentationLibrariesConfig,
     mainConfig,
+    containerConfig,
   };
 };
