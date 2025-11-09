@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.8](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.7...v0.0.8) (2025-11-09)
+
+
+### Features
+
+* add timedwall id generator ([#44](https://github.com/odigos-io/opentelemetry-node/issues/44)) ([6c55b7c](https://github.com/odigos-io/opentelemetry-node/commit/6c55b7ca6784ad7785bdbc0294b7b2798aaff198))
+
 ## [0.0.7](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.6...v0.0.7) (2025-10-21)
 
 
