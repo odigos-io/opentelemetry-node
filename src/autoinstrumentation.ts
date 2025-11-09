@@ -38,7 +38,6 @@ import {
 } from "@opentelemetry/sdk-trace-node";
 import * as semver from "semver";
 import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
-import { TimedWallIdGenerator } from "./id-generator/timedwall";
 import { idGeneratorFromConfig } from "./id-generator";
 
 // not yet published in '@opentelemetry/semantic-conventions'
