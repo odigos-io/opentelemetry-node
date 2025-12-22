@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.9](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.8...v0.0.9) (2025-12-22)
+
+
+### Bug Fixes
+
+* **bunyan:** support adding functions to Logger prototype ([#48](https://github.com/odigos-io/opentelemetry-node/issues/48)) ([aa1300a](https://github.com/odigos-io/opentelemetry-node/commit/aa1300a0da7bd7cbdfee98cda5302a6a8fec7d38))
+
 ## [0.0.8](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.7...v0.0.8) (2025-11-09)
 
 
