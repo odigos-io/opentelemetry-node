@@ -5,7 +5,7 @@ import { PubSubInstrumentation } from "./instrumentations/pubsub-instrumentation
 const instrumentations: [string, string, any?][] = [
   ["@opentelemetry/instrumentation-amqplib", "AmqplibInstrumentation"],
   ["@opentelemetry/instrumentation-aws-sdk", "AwsInstrumentation"],
-  ["@opentelemetry/instrumentation-bunyan", "BunyanInstrumentation"],
+  ["@odigos/instrumentation-bunyan", "BunyanInstrumentation"],
   [
     "@opentelemetry/instrumentation-cassandra-driver",
     "CassandraDriverInstrumentation",
