@@ -7,6 +7,15 @@
   resolved "https://registry.yarnpkg.com/@bufbuild/protobuf/-/protobuf-1.10.0.tgz#1a67ac889c2d464a3492b3e54c38f80517963b16"
   integrity sha512-QDdVFLoN93Zjg36NoQPZfsVH9tZew7wKDKyV5qRdj8ntT4wQCOradQjRaTdwMhWUYsgKsvCINKKm87FdEk96Ag==
 
+"@odigos/instrumentation-bunyan@0.0.2":
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/@odigos/instrumentation-bunyan/-/instrumentation-bunyan-0.0.2.tgz#974170f26c6251162c90ee0355e4164b49a0a604"
+  integrity sha512-KcitrDfZgzYasUCWm49hX6suFy1nhWzVQdAtDJB/QXH5nXaLMNg+P5/xHw8oAGu5CjSmZfY8rNu/Co+NRKNS6Q==
+  dependencies:
+    "@opentelemetry/api-logs" "^0.52.0"
+    "@opentelemetry/instrumentation" "^0.54.0"
+    "@types/bunyan" "1.8.9"
+
 "@odigos/instrumentation-kafkajs@0.0.6":
   version "0.0.6"
   resolved "https://registry.yarnpkg.com/@odigos/instrumentation-kafkajs/-/instrumentation-kafkajs-0.0.6.tgz#ea21a033071a2a3f0a1c89dcd8e808f576f3cb9c"
@@ -80,15 +89,6 @@
     "@opentelemetry/instrumentation" "^0.52.0"
     "@opentelemetry/propagation-utils" "^0.30.10"
     "@opentelemetry/semantic-conventions" "^1.22.0"
-
-"@opentelemetry/instrumentation-bunyan@0.40.0":
-  version "0.40.0"
-  resolved "https://registry.yarnpkg.com/@opentelemetry/instrumentation-bunyan/-/instrumentation-bunyan-0.40.0.tgz#9e67a37e0254173b6f6dd0a56dc55fb83e254857"
-  integrity sha512-aZ4cXaGWwj79ZXSYrgFVsrDlE4mmf2wfvP9bViwRc0j75A6eN6GaHYHqufFGMTCqASQn5pIjjP+Bx+PWTGiofw==
-  dependencies:
-    "@opentelemetry/api-logs" "^0.52.0"
-    "@opentelemetry/instrumentation" "^0.52.0"
-    "@types/bunyan" "1.8.9"
 
 "@opentelemetry/instrumentation-cassandra-driver@0.40.0":
   version "0.40.0"
