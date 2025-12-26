@@ -3,6 +3,7 @@ import { diag, DiagConsoleLogger, DiagLogLevel, TracerProvider } from "@opentele
 // diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 diag.info("Starting Odigos OpenTelemetry auto-instrumentation agent");
 
+import { uuidv7 } from "uuidv7";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import {
   CompositePropagator,
@@ -17,6 +18,7 @@ import {
   SEMRESATTRS_K8S_NAMESPACE_NAME,
   SEMRESATTRS_K8S_POD_NAME,
   SEMRESATTRS_K8S_CONTAINER_NAME,
+  SEMRESATTRS_SERVICE_INSTANCE_ID,
 } from "@opentelemetry/semantic-conventions";
 import {
   Resource,
@@ -83,10 +85,12 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
     );
     return;  
   }
+  const serviceInstanceId = uuidv7();
 
   const staticResource = new Resource({
     [SEMRESATTRS_TELEMETRY_DISTRO_NAME]: distroName,
-    [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION
+    [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
+    [SEMRESATTRS_SERVICE_INSTANCE_ID]: serviceInstanceId,
   });
 
   const detectorsResource = detectResourcesSync({
@@ -118,15 +122,15 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
   const { InstrumentationLibraries } = require("./instrumentation-libraries");
   // instrumentation libraries
   const instrumentationLibraries = new InstrumentationLibraries();
+
   const localResource = staticResource.merge(detectorsResource);
 
   const opampClient = new OpAMPClientHttp({
+    serviceInstanceId,
     opAMPServerHost: opampServerHost,
     agentDescriptionIdentifyingAttributes,
     agentDescriptionNonIdentifyingAttributes: {},
     onNewRemoteConfig: (remoteConfig: RemoteConfig) => {
-      const resource = localResource
-        .merge(remoteConfig.sdk.remoteResource);
 
       // set the tracer provider based on if traces are enabled or not.
       let tracerProvider: TracerProvider;
@@ -134,7 +138,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
         const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
         const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
           const nodeTracerProvider = new NodeTracerProvider({
-          resource,
+          resource: localResource,
           idGenerator,
         });
         nodeTracerProvider.addSpanProcessor(spanProcessor);

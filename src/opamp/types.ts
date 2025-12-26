@@ -5,6 +5,7 @@ import { PartialMessage } from "@bufbuild/protobuf";
 import { ContainerConfig } from "../config";
 
 export interface OpAMPClientHttpConfig {
+  serviceInstanceId: string;
   opAMPServerHost: string; // the host + (optional) port of the OpAMP server to connect over http://
   pollingIntervalMs?: number;
 
@@ -23,10 +24,6 @@ export interface TraceSignalGeneralConfig {
   defaultEnabledValue: boolean;
 }
 
-export interface SdkConfiguration {
-  remoteResource: Resource; // parse resource object
-}
-
 // InstrumentationLibrary Remote Configuration
 export interface InstrumentationLibraryTracesConfiguration {
   // if the value is set, use it, otherwise use the default value from the trace signal in the sdk level
@@ -40,7 +37,6 @@ export interface InstrumentationLibraryConfiguration {
 // All remote config fields
 
 export type RemoteConfig = {
-  sdk: SdkConfiguration;
   instrumentationLibraries: InstrumentationLibraryConfiguration[];
   containerConfig: ContainerConfig;
 };
