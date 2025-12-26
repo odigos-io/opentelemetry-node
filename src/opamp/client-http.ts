@@ -83,7 +83,6 @@ export class OpAMPClientHttp {
         }),
       },
       instrumentationLibraries: [],
-      mainConfig: {},
       containerConfig: {
         traces: {}, // default (if remote config is not set) is to collect traces
       },

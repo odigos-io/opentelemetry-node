@@ -44,18 +44,6 @@ export const extractRemoteConfigFromResponse = (
     throw new Error("error parsing SDK remote config");
   }
 
-  const mainConfigSection = agentRemoteConfig.config?.configMap[""];
-  if (!mainConfigSection || !mainConfigSection.body) {
-    throw new Error("missing main remote config");
-  }
-  const mainConfigBody = mainConfigSection.body.toString();
-  let mainConfig: any;
-  try {
-    mainConfig = JSON.parse(mainConfigBody);
-  } catch (error) {
-    throw new Error("error parsing main remote config");
-  }
-
   const containerConfigSection = agentRemoteConfig.config?.configMap["container_config"];
   if (!containerConfigSection || !containerConfigSection.body) {
     throw new Error("missing container config");
@@ -83,7 +71,6 @@ export const extractRemoteConfigFromResponse = (
       remoteResource,
     },
     instrumentationLibraries: instrumentationLibrariesConfig,
-    mainConfig,
     containerConfig,
   };
 };

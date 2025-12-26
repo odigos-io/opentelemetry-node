@@ -42,7 +42,6 @@ export interface InstrumentationLibraryConfiguration {
 export type RemoteConfig = {
   sdk: SdkConfiguration;
   instrumentationLibraries: InstrumentationLibraryConfiguration[];
-  mainConfig: any;
   containerConfig: ContainerConfig;
 };
 

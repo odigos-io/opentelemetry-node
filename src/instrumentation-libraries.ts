@@ -7,6 +7,7 @@ import {
 import { PackageStatus } from "./opamp/generated/opamp_pb";
 import { PartialMessage } from "@bufbuild/protobuf";
 import { getNodeAutoInstrumentations } from "./components";
+import { ContainerConfig } from "./config";
 
 type OdigosInstrumentation = {
   otelInstrumentation: Instrumentation;
@@ -66,7 +67,7 @@ export class InstrumentationLibraries {
 
   public onNewRemoteConfig(
     configs: InstrumentationLibraryConfiguration[],
-    mainConfig: any,
+    containerConfig: ContainerConfig,
     tracerProvider: TracerProvider
   ) {
     // set global tracer provider to record traces from 3rd party instrumented libraries
@@ -97,7 +98,7 @@ export class InstrumentationLibraries {
 
       const instrumentationLibraryName = odigosInstrumentation.otelInstrumentation.instrumentationName;
       if (instrumentationLibraryName === '@opentelemetry/instrumentation-http') {
-        const headerKeys = mainConfig?.headersCollection?.headerKeys;
+        const headerKeys = containerConfig.traces?.headersCollection?.httpHeaderKeys;
         if (headerKeys) {
           odigosInstrumentation.otelInstrumentation.setConfig({
             headersToSpanAttributes: {
