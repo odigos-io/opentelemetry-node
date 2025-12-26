@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.10](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.9...v0.0.10) (2025-12-26)
+
+
+### Features
+
+* add head sampling support via container config ([#54](https://github.com/odigos-io/opentelemetry-node/issues/54)) ([f5c6384](https://github.com/odigos-io/opentelemetry-node/commit/f5c63840f8348869a10ed2d27bb7924939176d70))
+
+
+### Bug Fixes
+
+* use container config for headers collection ([#51](https://github.com/odigos-io/opentelemetry-node/issues/51)) ([20cea38](https://github.com/odigos-io/opentelemetry-node/commit/20cea38c53857b74eb58a1ab95dffa3e6e0c5f6d))
+
 ## [0.0.9](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.8...v0.0.9) (2025-12-22)
 
 
