@@ -17,11 +17,21 @@ export interface IdGeneratorConfig {
     }
 }
 
+// configuration for the http headers collection.
+export interface HeadersCollectionConfig {
+    // only the keys in this list will be collected and added as attributes to the spans.
+    httpHeaderKeys: string[];
+}
+
 export interface TracesConfig {
     // configuration for the traces.
     // it controls the trace and span ids used when starting a new trace or span.
     // if not specified, the default is to use the random id generator.
     idGenerator?: IdGeneratorConfig;
+
+    // configuration for the http headers collection.
+    // if not specified, no headers will be collected
+    headersCollection?: HeadersCollectionConfig;
 }
 
 export interface ContainerConfig {

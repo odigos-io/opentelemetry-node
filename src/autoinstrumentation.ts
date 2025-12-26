@@ -145,7 +145,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
 
       instrumentationLibraries.onNewRemoteConfig(
         remoteConfig.instrumentationLibraries,
-        remoteConfig.mainConfig,
+        remoteConfig.containerConfig,
         tracerProvider
       );
       opampClient.setSdkHealthy();
