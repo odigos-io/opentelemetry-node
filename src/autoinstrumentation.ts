@@ -37,10 +37,13 @@ import {
   BatchSpanProcessor,
   NodeTracerProvider,
   SpanProcessor,
+  ParentBasedSampler,
+  Sampler,
 } from "@opentelemetry/sdk-trace-node";
 import * as semver from "semver";
 import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
 import { idGeneratorFromConfig } from "./id-generator";
+import { OdigosHeadSampler } from "./sampler";
 
 // not yet published in '@opentelemetry/semantic-conventions'
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
@@ -73,7 +76,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
     diag.error(
       "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST"
     );
-    return;  
+    return;
   }
 
   const staticResource = new Resource({
@@ -112,7 +115,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
   // instrumentation libraries
   const instrumentationLibraries = new InstrumentationLibraries();
 
-  const localResource = staticResource.merge(detectorsResource);
+  const resource = staticResource.merge(detectorsResource);
 
   const opampClient = new OpAMPClientHttp({
     serviceInstanceId,
@@ -126,8 +129,18 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
       if (remoteConfig.containerConfig.traces) {
         const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
         const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
-          const nodeTracerProvider = new NodeTracerProvider({
-          resource: localResource,
+
+        var sampler: Sampler | undefined = undefined;
+        const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
+        if (headSamplingConfig) {
+          sampler = new ParentBasedSampler({
+            root: new OdigosHeadSampler(headSamplingConfig),
+          });
+        }
+
+        const nodeTracerProvider = new NodeTracerProvider({
+          sampler,
+          resource,
           idGenerator,
         });
         nodeTracerProvider.addSpanProcessor(spanProcessor);
