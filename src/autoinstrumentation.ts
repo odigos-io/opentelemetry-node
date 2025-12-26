@@ -46,27 +46,17 @@ import { idGeneratorFromConfig } from "./id-generator";
 const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
 const SEMRESATTRS_TELEMETRY_DISTRO_VERSION = "telemetry.distro.version";
 
-
-const k8sAttributeMapping = {
-  ODIGOS_WORKLOAD_NAMESPACE: SEMRESATTRS_K8S_NAMESPACE_NAME,
-  ODIGOS_CONTAINER_NAME: SEMRESATTRS_K8S_CONTAINER_NAME,
-  ODIGOS_POD_NAME: SEMRESATTRS_K8S_POD_NAME
-};
-
-const k8sAttributes = Object.entries(k8sAttributeMapping)
-  .reduce<Record<string, string>>((acc, [envVar, attrKey]) => {
-    if (process.env[envVar]) {
-      acc[attrKey] = process.env[envVar] as string;
-    }
-    return acc;
-  }, {});
+const serviceInstanceId = uuidv7();
 
 const agentDescriptionIdentifyingAttributes = {
   [SEMRESATTRS_TELEMETRY_SDK_LANGUAGE]: TELEMETRYSDKLANGUAGEVALUES_NODEJS,
   [SEMRESATTRS_PROCESS_RUNTIME_VERSION]: process.versions.node,
   [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
   [PROCESS_VPID]: process.pid,
-  ...k8sAttributes
+  [SEMRESATTRS_SERVICE_INSTANCE_ID]: serviceInstanceId,
+  [SEMRESATTRS_K8S_NAMESPACE_NAME]: process.env.ODIGOS_WORKLOAD_NAMESPACE || undefined,
+  [SEMRESATTRS_K8S_POD_NAME]: process.env.ODIGOS_POD_NAME || undefined,
+  [SEMRESATTRS_K8S_CONTAINER_NAME]: process.env.ODIGOS_CONTAINER_NAME || undefined,
 };
 
 
@@ -85,7 +75,6 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
     );
     return;  
   }
-  const serviceInstanceId = uuidv7();
 
   const staticResource = new Resource({
     [SEMRESATTRS_TELEMETRY_DISTRO_NAME]: distroName,

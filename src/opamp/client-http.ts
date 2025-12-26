@@ -10,12 +10,7 @@ import {
 import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkHealthInfo } from "./types";
 import { otelAttributesToKeyValuePairs, sdkHealthInfoToOpampMessage } from "./utils";
 import axios, { AxiosInstance } from "axios";
-import { Resource } from "@opentelemetry/resources";
 import { context, diag } from "@opentelemetry/api";
-import {
-  SEMRESATTRS_SERVICE_INSTANCE_ID,
-  SEMRESATTRS_SERVICE_NAME,
-} from "@opentelemetry/semantic-conventions";
 import { suppressTracing } from "@opentelemetry/core";
 import { PackageStatuses } from "./generated/opamp_pb";
 import { extractRemoteConfigFromResponse } from "./remote-config";
@@ -271,10 +266,7 @@ export class OpAMPClientHttp {
   private getFullStateAgentToServerMessage(): PartialMessage<AgentToServer> {
     return {
       agentDescription: new AgentDescription({
-        identifyingAttributes: otelAttributesToKeyValuePairs({
-          [SEMRESATTRS_SERVICE_INSTANCE_ID]: this.config.serviceInstanceId, // always send the instance id
-          ...this.config.agentDescriptionIdentifyingAttributes,
-        }),
+        identifyingAttributes: otelAttributesToKeyValuePairs(this.config.agentDescriptionIdentifyingAttributes),
         nonIdentifyingAttributes: otelAttributesToKeyValuePairs(
           this.config.agentDescriptionNonIdentifyingAttributes
         ),
