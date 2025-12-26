@@ -38,19 +38,6 @@ export const otelAttributesToKeyValuePairs = (attributes?: Attributes): KeyValue
     });
 };
 
-export const keyValuePairsToOtelAttributes = (keyValuePairs?: ResourceAttributeFromServer[]): Attributes => {
-    if (!keyValuePairs) {
-        return {};
-    }
-    return keyValuePairs.reduce((acc, keyValue) => {
-        const value = keyValue.value;
-        if (value) {
-            acc[keyValue.key] = value;
-        }
-        return acc;
-    }, {} as Attributes);
-};
-
 export const sdkHealthInfoToOpampMessage = (sdkHealthInfo: SdkHealthInfo): PartialMessage<AgentToServer> => {
     return {
         health: {

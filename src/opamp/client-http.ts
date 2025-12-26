@@ -9,21 +9,14 @@ import {
 } from "./generated/opamp_pb";
 import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkHealthInfo } from "./types";
 import { otelAttributesToKeyValuePairs, sdkHealthInfoToOpampMessage } from "./utils";
-import { uuidv7 } from "uuidv7";
 import axios, { AxiosInstance } from "axios";
-import { Resource } from "@opentelemetry/resources";
 import { context, diag } from "@opentelemetry/api";
-import {
-  SEMRESATTRS_SERVICE_INSTANCE_ID,
-  SEMRESATTRS_SERVICE_NAME,
-} from "@opentelemetry/semantic-conventions";
 import { suppressTracing } from "@opentelemetry/core";
 import { PackageStatuses } from "./generated/opamp_pb";
 import { extractRemoteConfigFromResponse } from "./remote-config";
 
 export class OpAMPClientHttp {
   private config: OpAMPClientHttpConfig;
-  private opampInstanceUidString: string;
   private OpAMPInstanceUidBytes: Uint8Array;
   private nextSequenceNum: bigint = BigInt(0);
   private httpClient: AxiosInstance;
@@ -41,9 +34,8 @@ export class OpAMPClientHttp {
 
   constructor(config: OpAMPClientHttpConfig) {
     this.config = config;
-    this.opampInstanceUidString = uuidv7();
     this.OpAMPInstanceUidBytes = new TextEncoder().encode(
-      this.opampInstanceUidString
+      this.config.serviceInstanceId
     );
     this.lastSdkHealthInfo = {
       errorMessage: "Node.js OpenTelemetry agent is starting",
@@ -77,11 +69,6 @@ export class OpAMPClientHttp {
 
     // on any issue connection to opamp server, this will be the default remote config which will be applied
     this.defaultRemoteConfig = {
-      sdk: {
-        remoteResource: new Resource({
-          [SEMRESATTRS_SERVICE_INSTANCE_ID]: this.opampInstanceUidString,
-        }),
-      },
       instrumentationLibraries: [],
       containerConfig: {
         traces: {}, // default (if remote config is not set) is to collect traces
@@ -248,11 +235,6 @@ export class OpAMPClientHttp {
     try {
       const remoteConfig = extractRemoteConfigFromResponse(
         remoteConfigOpampMessage,
-        this.opampInstanceUidString
-      );
-      this.logger.info(
-        "Got remote configuration from OpAMP server",
-        remoteConfig.sdk.remoteResource.attributes,
       );
       this.config.onNewRemoteConfig(remoteConfig);
       this.remoteConfigStatus = new RemoteConfigStatus({
@@ -284,10 +266,7 @@ export class OpAMPClientHttp {
   private getFullStateAgentToServerMessage(): PartialMessage<AgentToServer> {
     return {
       agentDescription: new AgentDescription({
-        identifyingAttributes: otelAttributesToKeyValuePairs({
-          [SEMRESATTRS_SERVICE_INSTANCE_ID]: this.opampInstanceUidString, // always send the instance id
-          ...this.config.agentDescriptionIdentifyingAttributes,
-        }),
+        identifyingAttributes: otelAttributesToKeyValuePairs(this.config.agentDescriptionIdentifyingAttributes),
         nonIdentifyingAttributes: otelAttributesToKeyValuePairs(
           this.config.agentDescriptionNonIdentifyingAttributes
         ),
