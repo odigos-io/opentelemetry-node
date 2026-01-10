@@ -1,0 +1,8 @@
+issuer: https://token.actions.githubusercontent.com
+subject_pattern: repo:odigos-io/opentelemetry-node:ref:.*
+
+permissions:
+  #  based on https://github.com/googleapis/release-please-action?tab=readme-ov-file#workflow-permissions
+  contents: write
+  issues: write
+  pull_requests: write

@@ -1,0 +1,37 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - "main"
+
+permissions: read-all
+
+jobs:
+  release-please:
+
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+
+      - name: Get token for release please workflow
+        id: sts
+        uses: odigos-io/ci-core/sts@main
+        with:
+          scope: odigos-io/opentelemetry-node
+          identity: release-please
+          output-git-config: 'false'
+
+      - name: Check out code
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          token: ${{ steps.sts.outputs.GH_TOKEN }}
+          fetch-depth: 0
+
+      - name: Create or Update Release PR
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ steps.sts.outputs.GH_TOKEN }}
+          config-file: release-please-config.json
