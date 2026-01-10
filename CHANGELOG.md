@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.11](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.10...v0.0.11) (2026-01-10)
+
+
+### Miscellaneous Chores
+
+* release v0.0.11 ([#56](https://github.com/odigos-io/opentelemetry-node/issues/56)) ([1011674](https://github.com/odigos-io/opentelemetry-node/commit/1011674ff47dd7e65dc9b62048c9a3b020496e43))
+
 ## [0.0.10](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.9...v0.0.10) (2025-12-26)
 
 
