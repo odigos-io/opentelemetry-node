@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.12](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.11...v0.0.12) (2026-02-10)
+
+
+### Features
+
+* set agent logger level with OTEL_LOG_LEVEL ([#58](https://github.com/odigos-io/opentelemetry-node/issues/58)) ([c45774d](https://github.com/odigos-io/opentelemetry-node/commit/c45774de023165131782d27645bf5156ec2b05df))
+
 ## [0.0.11](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.10...v0.0.11) (2026-01-10)
 
 
