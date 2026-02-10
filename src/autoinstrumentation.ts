@@ -1,6 +1,7 @@
-import { diag, DiagConsoleLogger, DiagLogLevel, TracerProvider } from "@opentelemetry/api";
-// For development, uncomment the following line to see debug logs
-// diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
+// set the diag logger for OpenTelemetry first thing, to make sure we log everything related
+require('./diag').setOtelDiagLoggerToConsole();
+
+import { diag, TracerProvider } from "@opentelemetry/api";
 diag.info("Starting Odigos OpenTelemetry auto-instrumentation agent");
 
 import { uuidv7 } from "uuidv7";
