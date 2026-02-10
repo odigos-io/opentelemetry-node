@@ -11,7 +11,7 @@ const logLevelMap: { [key: string]: DiagLogLevel } = {
     NONE: DiagLogLevel.NONE,
 };
 
-export const getOtelLogLevel = (): DiagLogLevel | undefined => {
+const getOtelLogLevel = (): DiagLogLevel | undefined => {
     const otelLogLevel = process.env['OTEL_LOG_LEVEL'];
     if (!otelLogLevel) {
         return undefined;
@@ -19,7 +19,7 @@ export const getOtelLogLevel = (): DiagLogLevel | undefined => {
     return logLevelMap[otelLogLevel.toUpperCase()];
 }
 
-export const setOtelDiagLogger = () => {
+export const setOtelDiagLoggerToConsole = () => {
     const logLevel = getOtelLogLevel();
     if (!logLevel) {
         return;

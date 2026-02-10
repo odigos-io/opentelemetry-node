@@ -1,5 +1,5 @@
 // set the diag logger for OpenTelemetry first thing, to make sure we log everything related
-require('./diag').setOtelDiagLogger();
+require('./diag').setOtelDiagLoggerToConsole();
 
 import { diag, TracerProvider } from "@opentelemetry/api";
 diag.info("Starting Odigos OpenTelemetry auto-instrumentation agent");
