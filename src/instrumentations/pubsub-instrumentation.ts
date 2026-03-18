@@ -275,10 +275,9 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
             get: (c: Record<string, string>, k: string) => (c ? c[k] : undefined),
           } as const;
 
-          const baseCtx = context.active();
           const extracted = enableProp
-            ? propagation.extract(baseCtx, (msg?.attributes as Record<string, string>) || {}, getter)
-            : baseCtx;
+            ? propagation.extract(context.ROOT_CONTEXT, (msg?.attributes as Record<string, string>) || {}, getter)
+            : context.ROOT_CONTEXT;
 
           const subscriptionFullName: string | undefined = safeGetSubscriptionName(subscriptionInstance);
           const subscriptionDisplay = normalizeDisplayName(subscriptionFullName);
