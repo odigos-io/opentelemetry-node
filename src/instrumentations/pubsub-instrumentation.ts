@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { context, propagation, Span, SpanKind, trace } from "@opentelemetry/api";
+import { context, propagation, ROOT_CONTEXT, Span, SpanKind, trace } from "@opentelemetry/api";
 import {
   InstrumentationBase,
   InstrumentationNodeModuleDefinition,
@@ -276,8 +276,8 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
           } as const;
 
           const extracted = enableProp
-            ? propagation.extract(context.ROOT_CONTEXT, (msg?.attributes as Record<string, string>) || {}, getter)
-            : context.ROOT_CONTEXT;
+            ? propagation.extract(ROOT_CONTEXT, (msg?.attributes as Record<string, string>) || {}, getter)
+            : ROOT_CONTEXT;
 
           const subscriptionFullName: string | undefined = safeGetSubscriptionName(subscriptionInstance);
           const subscriptionDisplay = normalizeDisplayName(subscriptionFullName);
