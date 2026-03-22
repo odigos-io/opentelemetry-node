@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.13](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.12...v0.0.13) (2026-03-22)
+
+
+### Bug Fixes
+
+* CORE-771: Fix PubSub context handling ([#60](https://github.com/odigos-io/opentelemetry-node/issues/60)) ([308d851](https://github.com/odigos-io/opentelemetry-node/commit/308d8513ecc125aa09a08b579b878892e1f21727))
+
 ## [0.0.12](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.11...v0.0.12) (2026-02-10)
 
 
