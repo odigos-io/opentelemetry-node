@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { context, propagation, Span, SpanKind, trace } from "@opentelemetry/api";
+import { context, propagation, Span, SpanKind, trace, ROOT_CONTEXT } from "@opentelemetry/api";
 import {
   InstrumentationBase,
   InstrumentationNodeModuleDefinition,
@@ -275,10 +275,12 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
             get: (c: Record<string, string>, k: string) => (c ? c[k] : undefined),
           } as const;
 
-          const baseCtx = context.active();
+          // the active context at this point is the grpc.google.pubsub.v1.Subscriber/StreamingPull call,
+          // which lasts for the entire lifetime of the subscription listener.
+          // if the producer context is not available, we use the root context to start a new trace per message.
           const extracted = enableProp
-            ? propagation.extract(baseCtx, (msg?.attributes as Record<string, string>) || {}, getter)
-            : baseCtx;
+            ? propagation.extract(ROOT_CONTEXT, (msg?.attributes as Record<string, string>) || {}, getter)
+            : ROOT_CONTEXT;
 
           const subscriptionFullName: string | undefined = safeGetSubscriptionName(subscriptionInstance);
           const subscriptionDisplay = normalizeDisplayName(subscriptionFullName);
