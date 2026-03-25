@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.14](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.13...v0.0.14) (2026-03-25)
+
+
+### Bug Fixes
+
+* update axios to ^1.13.5 to resolve GHSA-43fc-jf86-j433 (High severity) ([#63](https://github.com/odigos-io/opentelemetry-node/issues/63)) ([4fe5261](https://github.com/odigos-io/opentelemetry-node/commit/4fe5261d4b406636dc5848112d0e68381f67b4ca))
+
 ## [0.0.13](https://github.com/odigos-io/opentelemetry-node/compare/v0.0.12...v0.0.13) (2026-03-22)
 
 
