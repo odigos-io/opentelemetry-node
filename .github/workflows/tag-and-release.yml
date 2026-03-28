@@ -232,24 +232,16 @@ jobs:
           failure-description: "ERROR: Failed to publish OpenTelemetry Node.js Community Agent"
           tag: ${{ needs.calculate.outputs.new_version }}
 
-  # ── 6. Verify publish, trigger Odigos version update, final Slack (success = both; failure = either)
+  # ── 6. Trigger Odigos version update + Slack (runs only if publish succeeded; skipped when publish fails/skipped — no extra job if: needed)
   trigger-odigos-update:
     needs: [calculate, publish]
-    if: always()
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     steps:
-      - name: Reflect publish job outcome
-        if: needs.publish.result != 'success'
-        run: |
-          echo "Publish job did not succeed (result: ${{ needs.publish.result }})"
-          exit 1
-
       - name: Get sts token for Odigos OSS repo
         id: sts-oss
-        if: needs.publish.result == 'success'
         uses: odigos-io/ci-core/sts@main
         with:
           scope: odigos-io/odigos
@@ -257,7 +249,6 @@ jobs:
           output-git-config: "false"
 
       - name: Trigger update instrumentation agents version workflow
-        if: needs.publish.result == 'success'
         uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ steps.sts-oss.outputs.GH_TOKEN }}
