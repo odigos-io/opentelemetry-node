@@ -75,14 +75,14 @@ jobs:
         uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
         with:
           webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
-          success-description: "Starting release of OpenTelemetry Node.js Community Agent ${{ needs.calculate.outputs.new_version }} for bump type ${{ inputs.bump }}"
-          failure-description: "ERROR: Failed to start release of OpenTelemetry Node.js Community Agent ${{ needs.calculate.outputs.new_version }} for bump type ${{ inputs.bump }}"
-          tag: ${{ needs.calculate.outputs.new_version }}
+          success-description: "Starting release of OpenTelemetry Node.js Community Agent ${{ steps.calc.outputs.new_version }} for bump type ${{ inputs.bump }}"
+          failure-description: "ERROR: Failed to start release of OpenTelemetry Node.js Community Agent ${{ steps.calc.outputs.new_version }} for bump type ${{ inputs.bump }}"
+          tag: ${{ steps.calc.outputs.new_version }}
           
 
   # ── 2. Build images (no push, parallel with calculate) ───────────────────
   build:
-    runs-on: depot-ubuntu-24.04-32
+    runs-on: depot-ubuntu-24.04-4
     permissions:
       contents: read
     needs: calculate
@@ -169,13 +169,13 @@ jobs:
       contents: read
     steps:
 
-      - name: Notify Slack (start)
+      - name: Notify Slack (publish)
         if: always()
         uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
         with:
           webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
-          success-description: "Starting release of OpenTelemetry Node.js Community Agent"
-          failure-description: "ERROR: Failed to start release of OpenTelemetry Node.js Community Agent"
+          success-description: "Start publishing OpenTelemetry Node.js Community Agent"
+          failure-description: "ERROR: Failed to start publishing OpenTelemetry Node.js Community Agent"
           tag: ${{ needs.calculate.outputs.new_version }}
 
       - uses: actions/checkout@v6
