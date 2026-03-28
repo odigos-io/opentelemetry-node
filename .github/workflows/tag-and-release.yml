@@ -8,7 +8,7 @@ run-name: "Tag and Release · ${{ inputs.bump }} on ${{ inputs.base_branch }}"
 # required reviewers to serve as the confirmation gate.
 #
 # Flow:
-#   trigger ─→ calculate → build → confirm → tag → publish
+#   trigger ─→ calculate → build → confirm → tag → publish → trigger-odigos-update
 
 concurrency:
   group: tag-and-release
@@ -69,10 +69,20 @@ jobs:
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
+      
+      - name: Notify Slack (start)
+        if: always()
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with:
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Starting release of OpenTelemetry Node.js Community Agent ${{ steps.calc.outputs.new_version }} for bump type ${{ inputs.bump }}"
+          failure-description: "ERROR: Failed to start release of OpenTelemetry Node.js Community Agent ${{ steps.calc.outputs.new_version }} for bump type ${{ inputs.bump }}"
+          tag: ${{ steps.calc.outputs.new_version }}
+          
 
   # ── 2. Build images (no push, parallel with calculate) ───────────────────
   build:
-    runs-on: depot-ubuntu-24.04-32
+    runs-on: depot-ubuntu-24.04-4
     permissions:
       contents: read
     needs: calculate
@@ -98,6 +108,15 @@ jobs:
           build-args: AGENT_VERSION=${{ needs.calculate.outputs.new_version }}
           cache-to: type=gha,scope=nodejs-community,mode=max
 
+      - name: Notify Slack (build)
+        if: always()
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with:
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Built OpenTelemetry Node.js Community Agent completed successfully, approve the deployment"
+          failure-description: "ERROR: Failed to build OpenTelemetry Node.js Community Agent"
+          tag: ${{ needs.calculate.outputs.new_version }}
+
   # ── 3. Human approval (after calculate + build both pass) ────────────────
   confirm:
     needs: [calculate, build]
@@ -106,6 +125,14 @@ jobs:
     steps:
       - name: Release approved
         run: echo "Releasing ${{ needs.calculate.outputs.new_version }} from ${{ inputs.base_branch }}"
+      - name: Notify Slack (confirm)
+        if: always()
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with:
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Release of OpenTelemetry Node.js Community Agent after being approved"
+          failure-description: "ERROR: Failed to approve release of OpenTelemetry Node.js Community Agent"
+          tag: ${{ needs.calculate.outputs.new_version }}
 
   # ── 4. Create tags + GitHub release (only if builds passed) ──────────────
   tag:
@@ -134,22 +161,21 @@ jobs:
           actor: ${{ github.actor }}
           run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-  # ── 5. Push images + notify ──────────────────────────────────────────────
+  # ── 5. Push images ─────────────────────────────────────────────────────────
   publish:
     needs: [calculate, tag]
-    runs-on: depot-ubuntu-24.04-32
+    runs-on: depot-ubuntu-24.04-4
     permissions:
-      id-token: write
       contents: read
     steps:
 
-      - name: Notify Slack (start)
+      - name: Notify Slack (publish)
         if: always()
         uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
         with:
           webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
-          success-description: "Starting release of OpenTelemetry Node.js Community Agent"
-          failure-description: "ERROR: Failed to start release of OpenTelemetry Node.js Community Agent"
+          success-description: "Start publishing OpenTelemetry Node.js Community Agent"
+          failure-description: "ERROR: Failed to start publishing OpenTelemetry Node.js Community Agent"
           tag: ${{ needs.calculate.outputs.new_version }}
 
       - uses: actions/checkout@v6
@@ -196,6 +222,23 @@ jobs:
           build-args: AGENT_VERSION=${{ needs.calculate.outputs.new_version }}
           cache-from: type=gha,scope=nodejs-community,mode=max
 
+      - name: Notify Slack (publish)
+        if: always()
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with:
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Published OpenTelemetry Node.js Community Agent"
+          failure-description: "ERROR: Failed to publish OpenTelemetry Node.js Community Agent"
+          tag: ${{ needs.calculate.outputs.new_version }}
+
+  # ── 6. Trigger Odigos version update + Slack (runs only if publish succeeded; skipped when publish fails/skipped — no extra job if: needed)
+  trigger-odigos-update:
+    needs: [calculate, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
       - name: Get sts token for Odigos OSS repo
         id: sts-oss
         uses: odigos-io/ci-core/sts@main
@@ -203,20 +246,20 @@ jobs:
           scope: odigos-io/odigos
           identity: trigger-agent-version-updater
           output-git-config: "false"
-    
+
       - name: Trigger update instrumentation agents version workflow
         uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ steps.sts-oss.outputs.GH_TOKEN }}
           repository: odigos-io/odigos
           event-type: update-instrumentation-agents-version
-          client-payload: '{"agents_category": "nodejs", "new_agent_version": "${{ needs.calculate.outputs.new_version }}"}'  
-  
+          client-payload: '{"agents_category": "nodejs", "new_agent_version": "${{ needs.calculate.outputs.new_version }}"}'
+
       - name: Notify Slack
         if: always()
         uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
         with:
           webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
-          success-description: "Published a new release of OpenTelemetry Node.js Community Agent"
-          failure-description: "ERROR: Failed to publish a new release of OpenTelemetry Node.js Community Agent"
+          success-description: "Triggered the Odigos instrumentation agents version update"
+          failure-description: "ERROR: Failed to trigger the Odigos instrumentation agents version update"
           tag: ${{ needs.calculate.outputs.new_version }}
