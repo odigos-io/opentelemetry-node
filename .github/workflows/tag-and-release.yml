@@ -1,0 +1,222 @@
+name: Tag and Release
+run-name: "Tag and Release · ${{ inputs.bump }} on ${{ inputs.base_branch }}"
+
+# Manually triggered release workflow.
+# Version bump logic is documented in tag-and-release/calculate.js inside ci-core.
+#
+# Requires a GitHub Environment named "release-gate" configured with
+# required reviewers to serve as the confirmation gate.
+#
+# Flow:
+#   trigger ─→ calculate → build → confirm → tag → publish
+
+concurrency:
+  group: tag-and-release
+  cancel-in-progress: false
+
+permissions: read-all
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options: [patch, minor, major, pre-minor, pre-major, rc-minor, rc-major]
+      base_branch:
+        description: "Base branch to tag (e.g. main, releases/v1.9.x)"
+        required: true
+        default: main
+        type: string
+
+env:
+  ECR_REPO_NODEJS_COMMUNITY: public.ecr.aws/odigos/agents/nodejs-community
+
+jobs:
+  # ── 1. Calculate the next version ─────────────────────────────────────────
+  calculate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      new_version: ${{ steps.calc.outputs.new_version }}
+      create_branch: ${{ steps.calc.outputs.create_branch }}
+      release_branch: ${{ steps.calc.outputs.release_branch }}
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+    steps:
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - id: calc
+        uses: odigos-io/ci-core/tag-and-release@main
+        with:
+          operation: calculate
+          bump: ${{ inputs.bump }}
+          base_branch: ${{ inputs.base_branch }}
+
+      - name: Derive release metadata
+        id: meta
+        env:
+          NEW_VERSION: ${{ steps.calc.outputs.new_version }}
+        run: |
+          if [[ "${NEW_VERSION}" == *"-pre."* || "${NEW_VERSION}" == *"-rc."* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── 2. Build images (no push, parallel with calculate) ───────────────────
+  build:
+    runs-on: depot-ubuntu-24.04-32
+    permissions:
+      contents: read
+    needs: calculate
+    steps:
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.base_branch }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Build NodeJS Community Docker image
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: false
+          context: .
+          file: Dockerfile
+          build-args: AGENT_VERSION=${{ needs.calculate.outputs.new_version }}
+          cache-to: type=gha,scope=nodejs-community,mode=max
+
+  # ── 3. Human approval (after calculate + build both pass) ────────────────
+  confirm:
+    needs: [calculate, build]
+    runs-on: ubuntu-latest
+    environment: release-gate
+    steps:
+      - name: Release approved
+        run: echo "Releasing ${{ needs.calculate.outputs.new_version }} from ${{ inputs.base_branch }}"
+
+  # ── 4. Create tags + GitHub release (only if builds passed) ──────────────
+  tag:
+    needs: [calculate, confirm]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - uses: odigos-io/ci-core/tag-and-release@main
+        with:
+          operation: tag
+          bump: ${{ inputs.bump }}
+          base_branch: ${{ inputs.base_branch }}
+          sts_identity: tag-releaser
+          new_version: ${{ needs.calculate.outputs.new_version }}
+          create_branch: ${{ needs.calculate.outputs.create_branch }}
+          release_branch: ${{ needs.calculate.outputs.release_branch }}
+          actor: ${{ github.actor }}
+          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # ── 5. Push images + notify ──────────────────────────────────────────────
+  publish:
+    needs: [calculate, tag]
+    runs-on: depot-ubuntu-24.04-32
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+
+      - name: Notify Slack (start)
+        if: always()
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with:
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Starting release of OpenTelemetry Node.js Community Agent"
+          failure-description: "ERROR: Failed to start release of OpenTelemetry Node.js Community Agent"
+          tag: ${{ needs.calculate.outputs.new_version }}
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.calculate.outputs.new_version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-ecr-upload
+          aws-region: 'us-east-1'
+
+      - name: Log in to Amazon ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 \
+          | docker login --username AWS --password-stdin public.ecr.aws
+
+      - name: Compute Docker tags
+        id: docker-tags
+        env:
+          NEW_VERSION: ${{ needs.calculate.outputs.new_version }}
+          IS_PRERELEASE: ${{ needs.calculate.outputs.is_prerelease }}
+        run: |
+          COMMUNITY="${ECR_REPO_NODEJS_COMMUNITY}:${NEW_VERSION}"
+          if [[ "${IS_PRERELEASE}" == "false" ]]; then
+            COMMUNITY="${COMMUNITY},${ECR_REPO_NODEJS_COMMUNITY}:latest"
+          fi
+          echo "community=${COMMUNITY}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push NodeJS Community Docker image
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: true
+          context: .
+          file: Dockerfile
+          tags: ${{ steps.docker-tags.outputs.community }}
+          build-args: AGENT_VERSION=${{ needs.calculate.outputs.new_version }}
+          cache-from: type=gha,scope=nodejs-community,mode=max
+
+      - name: Get sts token for Odigos OSS repo
+        id: sts-oss
+        uses: odigos-io/ci-core/sts@main
+        with:
+          scope: odigos-io/odigos
+          identity: trigger-agent-version-updater
+          output-git-config: "false"
+    
+      - name: Trigger update instrumentation agents version workflow
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ steps.sts-oss.outputs.GH_TOKEN }}
+          repository: odigos-io/odigos
+          event-type: update-instrumentation-agents-version
+          client-payload: '{"agents_category": "nodejs", "new_agent_version": "${{ needs.calculate.outputs.new_version }}"}'  
+  
+      - name: Notify Slack
+        if: always()
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with:
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Published a new release of OpenTelemetry Node.js Community Agent"
+          failure-description: "ERROR: Failed to publish a new release of OpenTelemetry Node.js Community Agent"
+          tag: ${{ needs.calculate.outputs.new_version }}
