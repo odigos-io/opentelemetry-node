@@ -12,10 +12,10 @@ const instrumentations: [string, string, any?][] = [
   ],
   ["@opentelemetry/instrumentation-connect", "ConnectInstrumentation"],
   ["@opentelemetry/instrumentation-dataloader", "DataloaderInstrumentation"],
-  ["@opentelemetry/instrumentation-dns", "DnsInstrumentation"],
+  // ["@opentelemetry/instrumentation-dns", "DnsInstrumentation"],
   ["@opentelemetry/instrumentation-express", "ExpressInstrumentation"],
   ["@opentelemetry/instrumentation-fastify", "FastifyInstrumentation"],
-  ["@opentelemetry/instrumentation-fs", "FsInstrumentation"],
+  // ["@opentelemetry/instrumentation-fs", "FsInstrumentation"],
   ["@opentelemetry/instrumentation-generic-pool", "GenericPoolInstrumentation"],
   ["@opentelemetry/instrumentation-graphql", "GraphQLInstrumentation", {
     // graphql instrumentation will create a lot of spans by default.
@@ -41,7 +41,7 @@ const instrumentations: [string, string, any?][] = [
   ["@opentelemetry/instrumentation-mysql2", "MySQL2Instrumentation"],
   ["@opentelemetry/instrumentation-mysql", "MySQLInstrumentation"],
   ["@opentelemetry/instrumentation-nestjs-core", "NestInstrumentation"],
-  ["@opentelemetry/instrumentation-net", "NetInstrumentation"],
+  // ["@opentelemetry/instrumentation-net", "NetInstrumentation"],
   ["@opentelemetry/instrumentation-pg", "PgInstrumentation"],
   ["@opentelemetry/instrumentation-pino", "PinoInstrumentation"],
   ["@opentelemetry/instrumentation-redis", "RedisInstrumentation"],
