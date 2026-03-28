@@ -41,7 +41,7 @@ const instrumentations: [string, string, any?][] = [
   ["@opentelemetry/instrumentation-mysql2", "MySQL2Instrumentation"],
   ["@opentelemetry/instrumentation-mysql", "MySQLInstrumentation"],
   ["@opentelemetry/instrumentation-nestjs-core", "NestInstrumentation"],
-  // ["@opentelemetry/instrumentation-net", "NetInstrumentation"],
+  // ["@opentelemetry/instrumentation-net`", "NetInstrumentation"],
   ["@opentelemetry/instrumentation-pg", "PgInstrumentation"],
   ["@opentelemetry/instrumentation-pino", "PinoInstrumentation"],
   ["@opentelemetry/instrumentation-redis", "RedisInstrumentation"],
