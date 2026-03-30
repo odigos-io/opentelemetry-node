@@ -1,7 +1,24 @@
 # @odigos/opentelemetry-node
 
-Odigos distribution of OpenTelemetry for Node.js
+This is abranch for the legacy nodejs-community-14 distro, which is using
+opentelemetry sdk verison 1.
+It supports Node.js >= 14, which some of odigos users are still using.
 
-This package is used in the odigos project to provide auto OpenTelemetry instrumentation for applications written in Node.js.
+Since otel stopped supporting node 14 and stopped maintaining the sdk v1 version, this branch is not expected to be updated, and just left as an option for existing users for a migration period.
 
-Note: This package is currently meant to be used in the odigos project with odigos OpAMP server. It cannot be used as a standalone package in arbitrary Node.js applications.
+If it ever needs to be updated, login to ecr and publish a new version:
+
+```
+export NEW_VERSION="v0.0.15"
+export ECR_REPO_NODEJS_COMMUNITY="public.ecr.aws/odigos/agents/nodejs-community-14"
+
+# Stable release: tag version + latest
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file Dockerfile \
+  --build-arg "AGENT_VERSION=${NEW_VERSION}" \
+  --tag "${ECR_REPO_NODEJS_COMMUNITY}:${NEW_VERSION}" \
+  --tag "${ECR_REPO_NODEJS_COMMUNITY}:latest" \
+  --push \
+  .
+```
