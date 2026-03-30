@@ -132,12 +132,12 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
         const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
 
         var sampler: Sampler | undefined = undefined;
-        const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
-        if (headSamplingConfig) {
-          sampler = new ParentBasedSampler({
-            root: new OdigosHeadSampler(headSamplingConfig),
-          });
-        }
+        // const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
+        // if (headSamplingConfig) {
+        //   sampler = new ParentBasedSampler({
+        //     root: new OdigosHeadSampler(headSamplingConfig),
+        //   });
+        // }
 
         const nodeTracerProvider = new NodeTracerProvider({
           sampler,
