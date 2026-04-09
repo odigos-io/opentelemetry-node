@@ -19,8 +19,8 @@ RUN yarn install --frozen-lockfile --production
 FROM scratch
 WORKDIR /instrumentations
 
-COPY --from=nodejs-community-build /opentelemetry-node/package.json ./opentelemetry-node/package.json
-COPY --from=nodejs-community-build /opentelemetry-node/LICENSE ./opentelemetry-node/LICENSE
-COPY --from=nodejs-community-build /opentelemetry-node/build ./opentelemetry-node/build
-COPY --from=nodejs-prod-modules /opentelemetry-node-prod/node_modules ./opentelemetry-node/node_modules
-COPY --from=nodejs-community-build /opentelemetry-node/build/src/nodejs-community/autoinstrumentation.js ./nodejs-community/autoinstrumentation.js
+COPY --from=nodejs-community-build /opentelemetry-node/package.json ./opentelemetry-node-14/package.json
+COPY --from=nodejs-community-build /opentelemetry-node/LICENSE ./opentelemetry-node-14/LICENSE
+COPY --from=nodejs-community-build /opentelemetry-node/build ./opentelemetry-node-14/build
+COPY --from=nodejs-prod-modules /opentelemetry-node-prod/node_modules ./opentelemetry-node-14/node_modules
+COPY --from=nodejs-community-build /opentelemetry-node/build/src/nodejs-community/autoinstrumentation.js ./nodejs-community-14/autoinstrumentation.js
