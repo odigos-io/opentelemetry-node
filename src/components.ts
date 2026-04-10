@@ -45,7 +45,6 @@ const instrumentations: [string, string, any?][] = [
   ["@opentelemetry/instrumentation-pg", "PgInstrumentation"],
   ["@opentelemetry/instrumentation-pino", "PinoInstrumentation"],
   ["@opentelemetry/instrumentation-redis", "RedisInstrumentation"],
-  ["@opentelemetry/instrumentation-redis-4", "RedisInstrumentation"],
   ["@opentelemetry/instrumentation-restify", "RestifyInstrumentation"],
   ["@opentelemetry/instrumentation-router", "RouterInstrumentation"],
   ["@opentelemetry/instrumentation-socket.io", "SocketIoInstrumentation"],
