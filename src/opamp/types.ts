@@ -1,7 +1,7 @@
+import { type MessageInitShape } from "@bufbuild/protobuf";
 import { Attributes } from "@opentelemetry/api";
 import { Resource } from "@opentelemetry/resources";
-import { PackageStatus } from "./generated/opamp_pb";
-import { PartialMessage } from "@bufbuild/protobuf";
+import { PackageStatusSchema } from "./generated/opamp_pb";
 import { ContainerConfig } from "../config";
 
 export interface OpAMPClientHttpConfig {
@@ -12,7 +12,7 @@ export interface OpAMPClientHttpConfig {
   agentDescriptionIdentifyingAttributes?: Attributes;
   agentDescriptionNonIdentifyingAttributes?: Attributes;
 
-  initialPackageStatues: PartialMessage<PackageStatus>[];
+  initialPackageStatues: MessageInitShape<typeof PackageStatusSchema>[];
 
   onNewRemoteConfig: (remoteConfig: RemoteConfig) => void;
 }

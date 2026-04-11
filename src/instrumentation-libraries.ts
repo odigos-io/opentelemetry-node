@@ -4,8 +4,8 @@ import {
   InstrumentationLibraryConfiguration,
   TraceSignalGeneralConfig,
 } from "./opamp";
-import { PackageStatus } from "./opamp/generated/opamp_pb";
-import { PartialMessage } from "@bufbuild/protobuf";
+import { type MessageInitShape } from "@bufbuild/protobuf";
+import { PackageStatusSchema } from "./opamp/generated/opamp_pb";
 import { getNodeAutoInstrumentations } from "./components";
 import { ContainerConfig } from "./config";
 
@@ -56,7 +56,7 @@ export class InstrumentationLibraries {
     );
   }
 
-  public getPackageStatuses(): PartialMessage<PackageStatus>[] {
+  public getPackageStatuses(): MessageInitShape<typeof PackageStatusSchema>[] {
     return this.instrumentations.map((instrumentation) => {
       return {
         name: instrumentation.instrumentationName,

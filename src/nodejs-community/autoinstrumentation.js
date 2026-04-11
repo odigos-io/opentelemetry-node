@@ -4,8 +4,8 @@ try {
     var major = parseInt(nodeVersion[0], 10);
 
     // Check for supported Node.js version
-    if (major < 14) {
-        console.error('Odigos: Unsupported Node.js version for OpenTelemetry auto-instrumentation');
+    if (major < 18) {
+        console.error('Odigos: Unsupported Node.js version for OpenTelemetry auto-instrumentation. Minimum supported version is 18, found: ' + process.versions.node);
     } else {
         // Import the necessary functions using traditional require syntax.
         var opentelemetryNode = require('../opentelemetry-node');

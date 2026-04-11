@@ -13,23 +13,20 @@ import {
 } from "@opentelemetry/core";
 import { OpAMPClientHttp, RemoteConfig, SdkHealthStatus } from "./opamp";
 import {
-  SEMRESATTRS_TELEMETRY_SDK_LANGUAGE,
-  TELEMETRYSDKLANGUAGEVALUES_NODEJS,
-  SEMRESATTRS_PROCESS_RUNTIME_VERSION,
-  SEMRESATTRS_K8S_NAMESPACE_NAME,
-  SEMRESATTRS_K8S_POD_NAME,
-  SEMRESATTRS_K8S_CONTAINER_NAME,
-  SEMRESATTRS_SERVICE_INSTANCE_ID,
-} from "@opentelemetry/semantic-conventions";
+  ATTR_SERVICE_INSTANCE_ID,
+  ATTR_TELEMETRY_SDK_LANGUAGE,
+  ATTR_TELEMETRY_DISTRO_VERSION,
+  ATTR_TELEMETRY_DISTRO_NAME,
+} from "@opentelemetry/semantic-conventions/incubating";
 import {
   Resource,
-  detectResourcesSync,
-  envDetectorSync,
-  hostDetectorSync,
-  processDetectorSync,
+  envDetector,
+  hostDetector,
+  processDetector,
+  resourceFromAttributes,
+  detectResources,
 } from "@opentelemetry/resources";
 import {
-  AsyncHooksContextManager,
   AsyncLocalStorageContextManager,
 } from "@opentelemetry/context-async-hooks";
 import { context, propagation } from "@opentelemetry/api";
@@ -41,28 +38,11 @@ import {
   ParentBasedSampler,
   Sampler,
 } from "@opentelemetry/sdk-trace-node";
-import * as semver from "semver";
 import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
 import { idGeneratorFromConfig } from "./id-generator";
 import { OdigosHeadSampler } from "./sampler";
 
-// not yet published in '@opentelemetry/semantic-conventions'
-const SEMRESATTRS_TELEMETRY_DISTRO_NAME = "telemetry.distro.name";
-const SEMRESATTRS_TELEMETRY_DISTRO_VERSION = "telemetry.distro.version";
-
 const serviceInstanceId = uuidv7();
-
-const agentDescriptionIdentifyingAttributes = {
-  [SEMRESATTRS_TELEMETRY_SDK_LANGUAGE]: TELEMETRYSDKLANGUAGEVALUES_NODEJS,
-  [SEMRESATTRS_PROCESS_RUNTIME_VERSION]: process.versions.node,
-  [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
-  [PROCESS_VPID]: process.pid,
-  [SEMRESATTRS_SERVICE_INSTANCE_ID]: serviceInstanceId,
-  [SEMRESATTRS_K8S_NAMESPACE_NAME]: process.env.ODIGOS_WORKLOAD_NAMESPACE || undefined,
-  [SEMRESATTRS_K8S_POD_NAME]: process.env.ODIGOS_POD_NAME || undefined,
-  [SEMRESATTRS_K8S_CONTAINER_NAME]: process.env.ODIGOS_CONTAINER_NAME || undefined,
-};
-
 
 // used by native-community agent
 export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
@@ -80,29 +60,31 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
     return;
   }
 
-  const staticResource = new Resource({
-    [SEMRESATTRS_TELEMETRY_DISTRO_NAME]: distroName,
-    [SEMRESATTRS_TELEMETRY_DISTRO_VERSION]: VERSION,
-    [SEMRESATTRS_SERVICE_INSTANCE_ID]: serviceInstanceId,
+  const staticResource = resourceFromAttributes({
+    [ATTR_TELEMETRY_DISTRO_NAME]: distroName,
+    [ATTR_TELEMETRY_DISTRO_VERSION]: VERSION,
+    [ATTR_SERVICE_INSTANCE_ID]: serviceInstanceId,
+    [ATTR_TELEMETRY_SDK_LANGUAGE]: "nodejs",
   });
 
-  const detectorsResource = detectResourcesSync({
+  const detectorsResource = detectResources({
     detectors: [
       // env detector reads resource attributes from the environment.
       // we don't populate it at the moment, but if the user set anything, this detector will pick it up
-      envDetectorSync,
+      envDetector,
       // info about executable, runtime, command, etc
       new OdigosProcessDetector(),
       // host name, and arch
-      hostDetectorSync,
+      hostDetector,
     ],
   });
 
+  const resource = staticResource.merge(detectorsResource);
+
+  const agentDescriptionIdentifyingAttributes = resource.attributes;
+
   // context manager
-  const ContextManager = semver.gte(process.versions.node, "14.8.0")
-    ? AsyncLocalStorageContextManager
-    : AsyncHooksContextManager;
-  const contextManager = new ContextManager();
+  const contextManager = new AsyncLocalStorageContextManager();
   contextManager.enable();
   context.setGlobalContextManager(contextManager);
 
@@ -115,8 +97,6 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
   const { InstrumentationLibraries } = require("./instrumentation-libraries");
   // instrumentation libraries
   const instrumentationLibraries = new InstrumentationLibraries();
-
-  const resource = staticResource.merge(detectorsResource);
 
   const opampClient = new OpAMPClientHttp({
     serviceInstanceId,
@@ -143,8 +123,8 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
           sampler,
           resource,
           idGenerator,
+          spanProcessors: [spanProcessor],
         });
-        nodeTracerProvider.addSpanProcessor(spanProcessor);
         tracerProvider = nodeTracerProvider;
       } else {
         tracerProvider = instrumentationLibraries.getNoopTracerProvider();

@@ -1,18 +1,20 @@
-import { PartialMessage } from "@bufbuild/protobuf";
+import { create, toBinary, fromBinary, type MessageInitShape } from "@bufbuild/protobuf";
 import {
-  AgentDescription,
-  AgentToServer,
-  RemoteConfigStatus,
+  AgentDescriptionSchema,
+  AgentToServerSchema,
+  type RemoteConfigStatus,
+  RemoteConfigStatusSchema,
   RemoteConfigStatuses,
-  ServerToAgent,
+  type ServerToAgent,
+  ServerToAgentSchema,
   ServerToAgentFlags,
+  PackageStatusesSchema,
 } from "./generated/opamp_pb";
 import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkHealthInfo } from "./types";
 import { otelAttributesToKeyValuePairs, sdkHealthInfoToOpampMessage } from "./utils";
 import axios, { AxiosInstance } from "axios";
 import { context, diag } from "@opentelemetry/api";
 import { suppressTracing } from "@opentelemetry/core";
-import { PackageStatuses } from "./generated/opamp_pb";
 import { extractRemoteConfigFromResponse } from "./remote-config";
 
 export class OpAMPClientHttp {
@@ -104,14 +106,11 @@ export class OpAMPClientHttp {
         "OpAMP client report SDK unhealthy and will not start.",
         { ...unhealthy }
       );
-      const agentDisconnectMessage = {
-        agentDisconnect: {},
-        ...sdkHealthInfoToOpampMessage(unhealthy),
-      };
       const firstAgentToServer = {
         ...fullStateAgentToServerMessage,
-        ...agentDisconnectMessage,
-      };
+        agentDisconnect: {},
+        ...sdkHealthInfoToOpampMessage(unhealthy),
+      } as MessageInitShape<typeof AgentToServerSchema>;
       await this.sendFirstMessageWithRetry(firstAgentToServer);
       return;
     }
@@ -133,7 +132,7 @@ export class OpAMPClientHttp {
           const agentToServerFullState =
             this.getFullStateAgentToServerMessage();
           const healthMessage = sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo)
-          await this.sendAgentToServerMessage({ ...agentToServerFullState, ...healthMessage} );
+          await this.sendAgentToServerMessage({ ...agentToServerFullState, ...healthMessage} as MessageInitShape<typeof AgentToServerSchema>);
         } catch (error) {
           this.logger.warn(
             "Error sending full state to OpAMP server on heartbeat response",
@@ -161,7 +160,7 @@ export class OpAMPClientHttp {
       await this.sendAgentToServerMessage({
         agentDisconnect: {},
         ...sdkHealthInfoToOpampMessage(this.lastSdkHealthInfo),
-      });
+      } as MessageInitShape<typeof AgentToServerSchema>);
     } catch (error) {
       this.logger.error(
         "Error sending AgentDisconnect message to OpAMP server"
@@ -175,7 +174,7 @@ export class OpAMPClientHttp {
   // this function will attempt to send the first message, and will retry after some interval if it fails.
   // if no remote resource attributes are received after some grace period, we will continue without them.
   private async sendFirstMessageWithRetry(
-    firstAgentToServer: PartialMessage<AgentToServer>
+    firstAgentToServer: MessageInitShape<typeof AgentToServerSchema>
   ) {
     let remainingRetries = 5;
     const retryIntervalMs = 2000;
@@ -237,12 +236,12 @@ export class OpAMPClientHttp {
         remoteConfigOpampMessage,
       );
       this.config.onNewRemoteConfig(remoteConfig);
-      this.remoteConfigStatus = new RemoteConfigStatus({
+      this.remoteConfigStatus = create(RemoteConfigStatusSchema, {
         lastRemoteConfigHash: remoteConfigOpampMessage.configHash,
         status: RemoteConfigStatuses.RemoteConfigStatuses_APPLIED,
       });
     } catch (error) {
-      this.remoteConfigStatus = new RemoteConfigStatus({
+      this.remoteConfigStatus = create(RemoteConfigStatusSchema, {
         lastRemoteConfigHash: remoteConfigOpampMessage.configHash,
         status: RemoteConfigStatuses.RemoteConfigStatuses_FAILED,
         errorMessage: "failed to apply the new remote config",
@@ -263,15 +262,15 @@ export class OpAMPClientHttp {
     }
   }
 
-  private getFullStateAgentToServerMessage(): PartialMessage<AgentToServer> {
+  private getFullStateAgentToServerMessage(): MessageInitShape<typeof AgentToServerSchema> {
     return {
-      agentDescription: new AgentDescription({
+      agentDescription: create(AgentDescriptionSchema, {
         identifyingAttributes: otelAttributesToKeyValuePairs(this.config.agentDescriptionIdentifyingAttributes),
         nonIdentifyingAttributes: otelAttributesToKeyValuePairs(
           this.config.agentDescriptionNonIdentifyingAttributes
         ),
       }),
-      packageStatuses: new PackageStatuses({
+      packageStatuses: create(PackageStatusesSchema, {
         packages: Object.fromEntries(
           this.config.initialPackageStatues.map((pkg) => [pkg.name, pkg])
         ),
@@ -281,15 +280,15 @@ export class OpAMPClientHttp {
   }
 
   private async sendAgentToServerMessage(
-    message: PartialMessage<AgentToServer>
+    message: MessageInitShape<typeof AgentToServerSchema>
   ): Promise<ServerToAgent> {
-    const completeMessageToSend = new AgentToServer({
+    const completeMessageToSend = create(AgentToServerSchema, {
       ...message,
       instanceUid: this.OpAMPInstanceUidBytes,
       sequenceNum: this.nextSequenceNum++,
       remoteConfigStatus: this.remoteConfigStatus,
     });
-    const msgBytes = completeMessageToSend.toBinary();
+    const msgBytes = toBinary(AgentToServerSchema, completeMessageToSend);
     try {
       // do not create traces for the opamp http requests
       const serverToAgent = await context.with(
@@ -298,7 +297,7 @@ export class OpAMPClientHttp {
           const res = await this.httpClient.post("/v1/opamp", msgBytes, {
             responseType: "arraybuffer",
           });
-          const serverToAgent = ServerToAgent.fromBinary(res.data);
+          const serverToAgent = fromBinary(ServerToAgentSchema, res.data);
           return serverToAgent;
         }
       );
