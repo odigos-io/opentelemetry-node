@@ -1,7 +1,7 @@
 // set the diag logger for OpenTelemetry first thing, to make sure we log everything related
 require('./diag').setOtelDiagLoggerToConsole();
 
-import { diag, TracerProvider } from "@opentelemetry/api";
+import { diag, Span, TracerProvider } from "@opentelemetry/api";
 diag.info("Starting Odigos OpenTelemetry auto-instrumentation agent");
 
 import { uuidv7 } from "uuidv7";
@@ -19,10 +19,8 @@ import {
   ATTR_TELEMETRY_DISTRO_NAME,
 } from "@opentelemetry/semantic-conventions/incubating";
 import {
-  Resource,
   envDetector,
   hostDetector,
-  processDetector,
   resourceFromAttributes,
   detectResources,
 } from "@opentelemetry/resources";
@@ -41,8 +39,14 @@ import {
 import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
 import { idGeneratorFromConfig } from "./id-generator";
 import { OdigosHeadSampler } from "./sampler";
+import { PubSubMessageHookInfo } from "./instrumentations/googlepubsub/types";
+import { InstrumentationLibraryConfigFunction } from "./instrumentations/config";
 
 const serviceInstanceId = uuidv7();
+
+export interface InstrumentationLibrariesTracerProviderSetter {
+  setTracerProvider(tracerProvider: TracerProvider): void;
+}
 
 // used by native-community agent
 export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
@@ -52,12 +56,12 @@ export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
 // this function is meant to be called by the specific agent implementation.
 // it allows the agent to provide its own span processor, depending on the
 // agent implementation (for example - eBPF span processor for enterprise agent)
-export const startOpenTelemetryAgent = (distroName: string, opampServerHost: string, spanProcessor: SpanProcessor) => {
+export const startOpenTelemetryAgent = (distroName: string, opampServerHost: string, spanProcessor: SpanProcessor, additionalConfigs: Record<string, InstrumentationLibraryConfigFunction> | undefined): InstrumentationLibrariesTracerProviderSetter | undefined => {
   if (!opampServerHost) {
     diag.error(
       "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST"
     );
-    return;
+    return undefined;
   }
 
   const staticResource = resourceFromAttributes({
@@ -94,9 +98,9 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
   });
   propagation.setGlobalPropagator(propagator);
 
-  const { InstrumentationLibraries } = require("./instrumentation-libraries");
+  const { InstrumentationLibraries } = require("./instrumentations");
   // instrumentation libraries
-  const instrumentationLibraries = new InstrumentationLibraries();
+  const instrumentationLibraries = new InstrumentationLibraries(additionalConfigs);
 
   const opampClient = new OpAMPClientHttp({
     serviceInstanceId,
@@ -106,7 +110,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
     onNewRemoteConfig: (remoteConfig: RemoteConfig) => {
 
       // set the tracer provider based on if traces are enabled or not.
-      let tracerProvider: TracerProvider;
+      let tracerProvider: TracerProvider | undefined;
       if (remoteConfig.containerConfig.traces) {
         const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
         const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
@@ -126,18 +130,12 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
           spanProcessors: [spanProcessor],
         });
         tracerProvider = nodeTracerProvider;
-      } else {
-        tracerProvider = instrumentationLibraries.getNoopTracerProvider();
       }
 
-      instrumentationLibraries.onNewRemoteConfig(
-        remoteConfig.instrumentationLibraries,
-        remoteConfig.containerConfig,
-        tracerProvider
-      );
+      instrumentationLibraries.updateConfig(remoteConfig, tracerProvider);
       opampClient.setSdkHealthy();
     },
-    initialPackageStatues: instrumentationLibraries.getPackageStatuses(),
+    initialPackageStatues: [], // TODO: fill this up
   });
 
   opampClient.start();
@@ -162,7 +160,5 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
   // - fatal error - an uncaught exception is thrown and not handled by application code
   process.on("exit", () => shutdown("node.js runtime is exiting"));
 
-  return {
-    instrumentations: instrumentationLibraries.getInstrumentations(),
-  }
+  return instrumentationLibraries;
 }
