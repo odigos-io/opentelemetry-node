@@ -7,8 +7,9 @@ import {
   safeExecuteInTheMiddle,
   type ShimWrapped,
 } from "@opentelemetry/instrumentation";
-import { VERSION } from "../version";
+import { VERSION } from "../../version";
 import { SemanticAttributes } from "@opentelemetry/semantic-conventions";
+import { PubSubInstrumentationConfig } from "./types";
 
 type AttributesMap = Record<string, string> | undefined;
 
@@ -34,9 +35,9 @@ function injectIfMissing(carrier: Record<string, string>, activeCtx: any) {
 const kConsumerSpan: unique symbol = Symbol("odigos.pubsub.consumerSpan");
 const kEnded: unique symbol = Symbol("odigos.pubsub.consumerSpan.ended");
 
-export class PubSubInstrumentation extends InstrumentationBase<any> {
-  constructor() {
-    super("@odigos/instrumentation-gcp-pubsub", VERSION);
+export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumentationConfig> {
+  constructor(config: PubSubInstrumentationConfig = {}) {
+    super("@odigos/instrumentation-gcp-pubsub", VERSION, config);
   }
 
   protected init(): InstrumentationNodeModuleDefinition<any>[] {
@@ -81,13 +82,13 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
               if (isWrapped(TopicProto.publishMessage)) (self as any)._unwrap(TopicProto, "publishMessage");
               if (isWrapped(TopicProto.publish)) (self as any)._unwrap(TopicProto, "publish");
             }
-          } catch {}
+          } catch { }
           try {
             const SubscriptionProto = (moduleExports as any).Subscription?.prototype;
             if (SubscriptionProto && isWrapped(SubscriptionProto.on)) {
               (self as any)._unwrap(SubscriptionProto, "on");
             }
-          } catch {}
+          } catch { }
         }
       ),
     ];
@@ -119,10 +120,17 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
             spanName,
             {
               kind: SpanKind.PRODUCER,
-              attributes: buildCommonMessagingAttrs(topicFullName, "publish"),
+              attributes: buildCommonMessagingAttrs(topicFullName, "publish", message.data),
             },
             activeCtx
           );
+
+          const config = self.getConfig();
+          try {
+            config?.onPublishMessageHook?.(span, { data: message?.data });
+          } catch (e) {
+            this.diag.error('Error calling onProcessMessageHook', e);
+          }
         }
 
         const ctxForInject = span ? trace.setSpan(activeCtx, span) : activeCtx;
@@ -145,7 +153,7 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
               try {
                 if (err) span.recordException(err as any);
                 span.end();
-              } catch {}
+              } catch { }
             }
           },
           true
@@ -174,10 +182,17 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
             spanName,
             {
               kind: SpanKind.PRODUCER,
-              attributes: buildCommonMessagingAttrs(topicFullName, "publish"),
+              attributes: buildCommonMessagingAttrs(topicFullName, "publish", data),
             },
             activeCtx
           );
+
+          const config = self.getConfig();
+          try {
+            config?.onPublishMessageHook?.(span, { data });
+          } catch (e) {
+            this.diag.error('Error calling onProcessMessageHook', e);
+          }
         }
 
         const ctxForInject = span ? trace.setSpan(activeCtx, span) : activeCtx;
@@ -186,7 +201,7 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
           if (enableProp) {
             attrs = injectIfMissing(ensureAttributes(attributes), ctxForInject);
           }
-        } catch {}
+        } catch { }
 
         const exec = () => original.apply(this, [data, attrs, ...rest]);
         return safeExecuteInTheMiddle(
@@ -196,7 +211,7 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
               try {
                 if (err) span.recordException(err as any);
                 span.end();
-              } catch {}
+              } catch { }
             }
           },
           true
@@ -225,10 +240,17 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
             spanName,
             {
               kind: SpanKind.PRODUCER,
-              attributes: buildCommonMessagingAttrs(topicFullName, "publish"),
+              attributes: buildCommonMessagingAttrs(topicFullName, "publish", data),
             },
             activeCtx
           );
+
+          const config = self.getConfig();
+          try {
+            config?.onPublishMessageHook?.(span, { data });
+          } catch (e) {
+            this.diag.error('Error calling onProcessMessageHook', e);
+          }
         }
 
         const ctxForInject = span ? trace.setSpan(activeCtx, span) : activeCtx;
@@ -237,7 +259,7 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
           if (enableProp) {
             attrs = injectIfMissing(ensureAttributes(attributes), ctxForInject);
           }
-        } catch {}
+        } catch { }
 
         const exec = () => original.apply(this, [data, attrs, ...rest]);
         return safeExecuteInTheMiddle(
@@ -247,7 +269,7 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
               try {
                 if (err) span.recordException(err as any);
                 span.end();
-              } catch {}
+              } catch { }
             }
           },
           true
@@ -284,14 +306,21 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
           const spanName = subscriptionDisplay ? `PubSub process ${subscriptionDisplay}` : "PubSub process";
           const span = enableSpans
             ? (self as any).tracer.startSpan(
-                spanName,
-                {
-                  kind: SpanKind.CONSUMER,
-                  attributes: buildCommonMessagingAttrs(subscriptionFullName, "process"),
-                },
-                extracted
-              )
+              spanName,
+              {
+                kind: SpanKind.CONSUMER,
+                attributes: buildCommonMessagingAttrs(subscriptionFullName, "process", msg?.data),
+              },
+              extracted
+            )
             : undefined;
+
+          const config = self.getConfig();
+          try {
+            config?.onProcessMessageHook?.(span, { data: msg?.data });
+          } catch (e) {
+            this.diag.error('Error calling onProcessMessageHook', e);
+          }
 
           // end-once helper specific to this message
           const endSpanOnce = (() => {
@@ -299,7 +328,7 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
             return () => {
               if (!span || ended) return;
               ended = true;
-              try { span.end(); } catch {}
+              try { span.end(); } catch { }
             };
           })();
 
@@ -312,7 +341,7 @@ export class PubSubInstrumentation extends InstrumentationBase<any> {
               () => listener(msg, ...rest),
               (err: unknown) => {
                 if (err && span) {
-                  try { span.recordException(err as any); } catch {}
+                  try { span.recordException(err as any); } catch { }
                 }
                 // If user did not ack/nack synchronously, make a microtask fallback to avoid stuck spans
                 queueMicrotask(endSpanOnce);
@@ -370,14 +399,14 @@ function tryPatchAckNack(message: any, end: () => void) {
       if (typeof orig !== "function") continue;
       if (isWrapped(orig as any)) continue;
       const wrapped = function (this: any, ...args: any[]) {
-        try { end(); } catch {}
+        try { end(); } catch { }
         return orig.apply(this, args);
       };
       try {
         Object.defineProperty(message, methodName, { value: wrapped, configurable: true });
-      } catch {}
+      } catch { }
     }
-  } catch {}
+  } catch { }
 }
 
 function normalizeDisplayName(fullName?: string): string | undefined {
@@ -388,17 +417,20 @@ function normalizeDisplayName(fullName?: string): string | undefined {
     const last = parts[parts.length - 1];
     const prev = parts[parts.length - 2];
     if (prev === 'topics' || prev === 'subscriptions') return last;
-  } catch {}
+  } catch { }
   return fullName;
 }
 
-function buildCommonMessagingAttrs(destinationName: string | undefined, op: "publish" | "process") {
+function buildCommonMessagingAttrs(destinationName: string | undefined, op: "publish" | "process", data: Buffer | undefined) {
   const attrs: Record<string, unknown> = {
     [SemanticAttributes.MESSAGING_SYSTEM]: "gcp_pubsub",
     [SemanticAttributes.MESSAGING_OPERATION]: op,
   };
   if (destinationName) {
     attrs[SemanticAttributes.MESSAGING_DESTINATION] = destinationName;
+  }
+  if (data != null) {
+    attrs[SemanticAttributes.MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES] = data.length;
   }
   return attrs;
 }
