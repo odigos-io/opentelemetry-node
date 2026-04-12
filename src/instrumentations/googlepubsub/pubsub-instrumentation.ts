@@ -6,6 +6,7 @@ import {
   isWrapped,
   safeExecuteInTheMiddle,
   type ShimWrapped,
+  InstrumentationNodeModuleFile,
 } from "@opentelemetry/instrumentation";
 import { VERSION } from "../../version";
 import { SemanticAttributes } from "@opentelemetry/semantic-conventions";
@@ -89,7 +90,27 @@ export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumenta
               (self as any)._unwrap(SubscriptionProto, "on");
             }
           } catch { }
-        }
+        },
+        [new InstrumentationNodeModuleFile(
+          '@google-cloud/pubsub/build/src/exponential-retry.js',
+          ['*'],
+          (moduleExports: any) => {
+            if (!moduleExports) return moduleExports;
+            const ExponentialRetryProto = (moduleExports as any).ExponentialRetry?.prototype;
+            if(ExponentialRetryProto) {
+              (self as any)._wrap(ExponentialRetryProto, "retryLater", self._createRetryLaterWrap());
+            }
+            return moduleExports;
+          },
+          (moduleExports: any) => {
+            if (!moduleExports) return moduleExports;
+            const ExponentialRetryProto = (moduleExports as any).ExponentialRetry?.prototype;
+            if(ExponentialRetryProto) {
+              (self as any)._unwrap(ExponentialRetryProto, "retryLater");
+            }
+            return moduleExports;
+          }
+        )]
       ),
     ];
   }
@@ -356,6 +377,19 @@ export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumenta
       } as any;
     };
   }
+
+  private _createRetryLaterWrap() {
+    const self = this;
+    return function (original: (...args: any[]) => any): any {
+      return function wrapped(this: any, ...args: any[]) {
+        // start a new trace for a retry.
+        // if not - we can retry forever and create infinite traces.
+        context.with(ROOT_CONTEXT, () => {
+          return original.apply(this, args);
+        });
+      }
+    }
+  }  
 }
 
 function safeGetTopicName(topicInstance: any): string | undefined {
