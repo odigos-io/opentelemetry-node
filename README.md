@@ -9,7 +9,7 @@ Since otel stopped supporting node 14 and stopped maintaining the sdk v1 version
 If it ever needs to be updated, login to ecr and publish a new version:
 
 ```
-export NEW_VERSION="v0.0.15"
+export NEW_VERSION="v0.0.17"
 export ECR_REPO_NODEJS_COMMUNITY="public.ecr.aws/odigos/agents/nodejs-community-14"
 
 # Stable release: tag version + latest
@@ -21,4 +21,11 @@ docker buildx build \
   --tag "${ECR_REPO_NODEJS_COMMUNITY}:latest" \
   --push \
   .
+```
+
+Then push the new git tag on this branch:
+
+```
+git tag nodejs-community-14/$NEW_VERSION
+git push upstream nodejs-community-14/$NEW_VERSION
 ```
