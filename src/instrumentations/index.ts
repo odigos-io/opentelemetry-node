@@ -41,9 +41,9 @@ export class InstrumentationLibraries {
         // set global tracer provider to record traces from 3rd party instrumented libraries
         for (const [_, instrumentationLibrary] of this.instrumentationLibraries.entries()) {
             const resolvedConfig = resolveBaseConfig(instrumentationLibrary.manifest, remoteConfig);
-            const additionalConfig = instrumentationLibrary.additionalConfig?.(instrumentationLibrary.manifest.instrumentationNpmPackage, remoteConfig);
+            const additionalConfig = instrumentationLibrary.additionalConfig?.(instrumentationLibrary.manifest.instrumentationNpmPackage, remoteConfig, resolvedConfig);
             const effectiveConfig = { ...resolvedConfig, ...additionalConfig };
-            
+
             instrumentationLibrary.instrumentationInstance.setConfig(effectiveConfig ?? {});
             instrumentationLibrary.instrumentationInstance.setTracerProvider(tracerProviderInUse);
         }

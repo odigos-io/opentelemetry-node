@@ -29,7 +29,7 @@ export const createInstrumentationLibraryInstance = (
 ): Instrumentation | undefined => {
 
     const instrumentationConfig = resolveBaseConfig(manifest, remoteConfig);
-    const additionalConfig = additionalConfigFn?.(manifest.instrumentationNpmPackage, remoteConfig) ?? {};
+    const additionalConfig = additionalConfigFn?.(manifest.instrumentationNpmPackage, remoteConfig, instrumentationConfig) ?? {};
 
     const effectiveConfig = { ...instrumentationConfig, ...additionalConfig };
 
@@ -46,26 +46,13 @@ export const createInstrumentationLibraryInstance = (
     }
 }
 
-export const resolveAdditionalConfig = (
-    additionalConfigFn: InstrumentationLibraryConfigFunction | undefined, 
-    manifest: InstrumentationLibraryManifest, 
-    remoteConfig?: RemoteConfig
-): InstrumentationConfig => {
-    if (!additionalConfigFn) {
-        return {};
-    }
-
-    const additionalConfig = additionalConfigFn(manifest.instrumentationNpmPackage, remoteConfig);
-    return additionalConfig ?? {};
-}
-
 export const resolveBaseConfig = (manifest: InstrumentationLibraryManifest, remoteConfig: RemoteConfig | undefined): InstrumentationConfig => {
     if (!manifest.config) {
         return {}
     }
 
     if (typeof manifest.config === "function") {
-        return manifest.config(manifest.instrumentationNpmPackage, remoteConfig);
+        return manifest.config(manifest.instrumentationNpmPackage, remoteConfig, undefined);
     } else {
         return manifest.config;
     }

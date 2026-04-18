@@ -2,9 +2,9 @@ import { RemoteConfig } from "../opamp";
 import { Instrumentation, InstrumentationConfig } from "@opentelemetry/instrumentation";
 import { PubSubInstrumentation } from "./googlepubsub/pubsub-instrumentation";
 
-import type { HttpInstrumentationConfig } from "@opentelemetry/instrumentation-http";
+import { getAllHeadersInstrumentationConfig, getHttpHeadersFromRemoteConfig, getSpecificHttpHeadersInstrumentationConfig, isCollectingAllHttpHeaders } from "./header-collection";
 
-export type InstrumentationLibraryConfigFunction = (libraryName: string, config: RemoteConfig | undefined) => InstrumentationConfig;
+export type InstrumentationLibraryConfigFunction = (libraryName: string, agentConfig: RemoteConfig | undefined, currentInstrumentationConfig: InstrumentationConfig | undefined) => InstrumentationConfig;
 
 export type InstrumentationFactory = (config: InstrumentationConfig | undefined) => Instrumentation;
 
@@ -87,23 +87,17 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
         instrumentationNpmPackage: "@opentelemetry/instrumentation-http",
         import: "HttpInstrumentation",
         config: (_: string, config: RemoteConfig | undefined): InstrumentationConfig => {
-            const headerKeys = config?.containerConfig?.traces?.headersCollection?.httpHeaderKeys;
-            if (!headerKeys) {
+            const headerKeys = getHttpHeadersFromRemoteConfig(config);
+            if (!headerKeys || headerKeys.length === 0) {
                 return {};
             }
-
-            return {
-                headersToSpanAttributes: {
-                    server: {
-                        requestHeaders: headerKeys,
-                        responseHeaders: headerKeys,
-                    },
-                    client: {
-                        requestHeaders: headerKeys,
-                        responseHeaders: headerKeys,
-                    },
-                },
-            } as HttpInstrumentationConfig;
+       
+            const isCollectingAllHeaders = isCollectingAllHttpHeaders(headerKeys);
+            if (isCollectingAllHeaders) {
+                return getAllHeadersInstrumentationConfig();
+            } else {
+                return getSpecificHttpHeadersInstrumentationConfig(headerKeys);
+            }
         },
     }],
     ["@opentelemetry/instrumentation-ioredis", {
