@@ -23,8 +23,34 @@ export interface HeadersCollectionConfig {
     httpHeaderKeys: string[];
 }
 
+export interface HeadSamplingOperationMatcher {
+    httpServer?: HttpSamplingOperationMatcherServer;
+    httpClient?: HttpSamplingOperationMatcherClient;
+}
+
+export interface HttpSamplingOperationMatcherServer {
+    route?: string;
+    routePrefix?: string;
+    method?: string;
+}
+
+export interface HttpSamplingOperationMatcherClient {
+    serverAddress?: string;
+    templatedPath?: string;
+    templatedPathPrefix?: string;
+    method?: string;
+}
+
+export interface NoisyOperationSamplingConfig {
+    id: string;
+    name?: string;
+    disabled?: boolean;
+    operation?: HeadSamplingOperationMatcher;
+    percentageAtMost?: number;
+}
+
 export interface HeadSamplingConfig {
-    // Noisy operations head sampling will be added here.
+    noisyOperations: NoisyOperationSamplingConfig[];
 }
 
 export interface TracesConfig {

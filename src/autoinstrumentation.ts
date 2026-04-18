@@ -11,7 +11,7 @@ import {
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from "@opentelemetry/core";
-import { OpAMPClientHttp, RemoteConfig, SdkHealthStatus } from "./opamp";
+import { OpAMPClientHttp, RemoteConfig } from "./opamp";
 import {
   ATTR_SERVICE_INSTANCE_ID,
   ATTR_TELEMETRY_SDK_LANGUAGE,
@@ -115,12 +115,12 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
         const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
 
         var sampler: Sampler | undefined = undefined;
-        // const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
-        // if (headSamplingConfig) {
-        //   sampler = new ParentBasedSampler({
-        //     root: new OdigosHeadSampler(headSamplingConfig),
-        //   });
-        // }
+        const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
+        if (headSamplingConfig) {
+          sampler = new ParentBasedSampler({
+            root: new OdigosHeadSampler(headSamplingConfig),
+          });
+        }
 
         const nodeTracerProvider = new NodeTracerProvider({
           sampler,
