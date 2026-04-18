@@ -47,10 +47,10 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
         instrumentationNpmPackage: "@opentelemetry/instrumentation-dataloader",
         import: "DataloaderInstrumentation",
     }],
-    ["@opentelemetry/instrumentation-dns", {
-        instrumentationNpmPackage: "@opentelemetry/instrumentation-dns",
-        import: "DnsInstrumentation",
-    }],
+    // ["@opentelemetry/instrumentation-dns", {
+    //     instrumentationNpmPackage: "@opentelemetry/instrumentation-dns",
+    //     import: "DnsInstrumentation",
+    // }],
     ["@opentelemetry/instrumentation-express", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-express",
         import: "ExpressInstrumentation",
@@ -59,10 +59,10 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
         instrumentationNpmPackage: "@opentelemetry/instrumentation-fastify",
         import: "FastifyInstrumentation",
     }],
-    ["@opentelemetry/instrumentation-fs", {
-        instrumentationNpmPackage: "@opentelemetry/instrumentation-fs",
-        import: "FsInstrumentation",
-    }],
+    // ["@opentelemetry/instrumentation-fs", {
+    //     instrumentationNpmPackage: "@opentelemetry/instrumentation-fs",
+    //     import: "FsInstrumentation",
+    // }],
     ["@opentelemetry/instrumentation-generic-pool", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-generic-pool",
         import: "GenericPoolInstrumentation",
