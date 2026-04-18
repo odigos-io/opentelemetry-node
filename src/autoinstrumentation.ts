@@ -39,7 +39,6 @@ import {
 import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
 import { idGeneratorFromConfig } from "./id-generator";
 import { OdigosHeadSampler } from "./sampler";
-import { PubSubMessageHookInfo } from "./instrumentations/googlepubsub/types";
 import { InstrumentationLibraryConfigFunction } from "./instrumentations/config";
 
 const serviceInstanceId = uuidv7();
