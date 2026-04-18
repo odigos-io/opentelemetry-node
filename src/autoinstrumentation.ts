@@ -11,7 +11,7 @@ import {
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from "@opentelemetry/core";
-import { OpAMPClientHttp, RemoteConfig, SdkHealthStatus } from "./opamp";
+import { OpAMPClientHttp, RemoteConfig } from "./opamp";
 import {
   ATTR_SERVICE_INSTANCE_ID,
   ATTR_TELEMETRY_SDK_LANGUAGE,
