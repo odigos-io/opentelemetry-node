@@ -55,7 +55,7 @@ export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
 // this function is meant to be called by the specific agent implementation.
 // it allows the agent to provide its own span processor, depending on the
 // agent implementation (for example - eBPF span processor for enterprise agent)
-export const startOpenTelemetryAgent = (distroName: string, opampServerHost: string, spanProcessor: SpanProcessor, additionalConfigs: Record<string, InstrumentationLibraryConfigFunction> | undefined): InstrumentationLibrariesTracerProviderSetter | undefined => {
+export const startOpenTelemetryAgent = (distroName: string, opampServerHost: string, spanProcessorExporting: SpanProcessor, additionalConfigs: Record<string, InstrumentationLibraryConfigFunction> | undefined): InstrumentationLibrariesTracerProviderSetter | undefined => {
   if (!opampServerHost) {
     diag.error(
       "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST"
@@ -126,7 +126,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
           sampler,
           resource,
           idGenerator,
-          spanProcessors: [spanProcessor],
+          spanProcessors: [spanProcessorExporting],
         });
         tracerProvider = nodeTracerProvider;
       }
@@ -144,7 +144,7 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
       diag.info("Shutting down OpenTelemetry SDK and OpAMP client");
       await Promise.all([
         opampClient.shutdown(shutdownReason),
-        spanProcessor.shutdown(),
+        spanProcessorExporting.shutdown(),
       ]);
     } catch (err) {
       diag.error("Error shutting down OpenTelemetry SDK and OpAMP client", err);
