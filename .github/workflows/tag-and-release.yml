@@ -53,7 +53,7 @@ jobs:
           fetch-tags: true
 
       - id: calc
-        uses: odigos-io/ci-core/tag-and-release@main
+        uses: odigos-io/ci-core/tag-and-release@fix/patch-scope-tags-to-branch
         with:
           operation: calculate
           bump: ${{ inputs.bump }}
