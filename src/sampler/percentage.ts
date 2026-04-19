@@ -31,9 +31,20 @@ function traceIdToPercentage(traceId: string): number {
  * Returns a sampling decision by comparing the trace's deterministic percentage
  * against the configured rule percentage.
  */
-export function samplingDecisionByPercentage(traceId: string, rulePercentage: number): SamplingDecision {
-    const tracePercentage = traceIdToPercentage(traceId);
-    return tracePercentage < rulePercentage
-        ? SamplingDecision.RECORD_AND_SAMPLED
-        : SamplingDecision.NOT_RECORD;
+export function samplingDecisionByPercentage(traceId: string, keepPercentage: number): SamplingDecision {
+
+    // if rulePercentage is 0, we always not record and sample.
+    // if rulePercentage is 100, we always record and sample.
+    // everything is between is linearly mapped to the decision.
+    switch (keepPercentage) {
+        case 0:
+            return SamplingDecision.NOT_RECORD;
+        case 100:
+            return SamplingDecision.RECORD_AND_SAMPLED;
+        default:
+            const tracePercentage = traceIdToPercentage(traceId);
+            return tracePercentage < keepPercentage
+                ? SamplingDecision.RECORD_AND_SAMPLED
+                : SamplingDecision.NOT_RECORD;
+    }
 }

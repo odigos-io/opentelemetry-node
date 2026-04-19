@@ -1,4 +1,4 @@
-import { Attributes, Context, Link, SpanKind } from "@opentelemetry/api";
+import { Attributes, Context, createTraceState, Link, SpanKind } from "@opentelemetry/api";
 import { Sampler, SamplingDecision, SamplingResult } from "@opentelemetry/sdk-trace-base";
 import { HeadSamplingConfig, NoisyOperationSamplingConfig } from "../config";
 import { matchHttpServerRule } from "./http-server";
@@ -54,11 +54,15 @@ export class OdigosHeadSampler implements Sampler {
 
         // find the rule with minimum percentage, default if not set is 0
         const minPercentageRule = this.findMinPercentageRule(matchedRules);
-        const percentage = minPercentageRule.percentageAtMost ?? 0;
+        const keepPercentage = minPercentageRule.percentageAtMost ?? 0;
+        const percentageTwoDecimalPlaces = Math.round(keepPercentage * 100) / 100;
 
-        return {
-            decision: samplingDecisionByPercentage(traceId, percentage),
-        };
+        const decision = samplingDecisionByPercentage(traceId, keepPercentage);
+        // c means category, n means noise.
+        // dr means deciding rule, p means percentage, id means deciding rule id.
+        const traceStateString = `odigos=c:n;dr.p:${percentageTwoDecimalPlaces};dr.id:${minPercentageRule.id}`;
+        const traceState = createTraceState(traceStateString);
+        return { decision, traceState };
     }
 
     private matchHttpServerRules(attributes: Attributes, matchedRules: NoisyOperationSamplingConfig[]): void {
