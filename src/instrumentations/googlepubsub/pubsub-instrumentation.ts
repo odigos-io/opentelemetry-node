@@ -21,6 +21,18 @@ function ensureAttributes(obj?: Record<string, string>): Record<string, string> 
   return {};
 }
 
+/** Maps Pub/Sub message attributes to OTel span attrs: `messaging.message.attribute.<name>` → value. */
+function spanAttrsFromMessageAttributes(attributes: AttributesMap): Record<string, string> {
+  if (!attributes || typeof attributes !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const key of Object.keys(attributes)) {
+    const val = attributes[key];
+    if (val === undefined) continue;
+    out[`messaging.message.attribute.${key}`] = String(val);
+  }
+  return out;
+}
+
 function injectIfMissing(carrier: Record<string, string>, activeCtx: any) {
   // respect existing headers
   if (INJECT_KEYS.some((k) => carrier[k])) return carrier;
@@ -141,7 +153,10 @@ export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumenta
             spanName,
             {
               kind: SpanKind.PRODUCER,
-              attributes: buildCommonMessagingAttrs(topicFullName, "publish", message.data),
+              attributes: {
+                ...buildCommonMessagingAttrs(topicFullName, "publish", message.data),
+                ...spanAttrsFromMessageAttributes(message.attributes as AttributesMap),
+              },
             },
             activeCtx
           );
@@ -203,7 +218,10 @@ export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumenta
             spanName,
             {
               kind: SpanKind.PRODUCER,
-              attributes: buildCommonMessagingAttrs(topicFullName, "publish", data),
+              attributes: {
+                ...buildCommonMessagingAttrs(topicFullName, "publish", data),
+                ...spanAttrsFromMessageAttributes(attributes),
+              },
             },
             activeCtx
           );
@@ -261,7 +279,10 @@ export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumenta
             spanName,
             {
               kind: SpanKind.PRODUCER,
-              attributes: buildCommonMessagingAttrs(topicFullName, "publish", data),
+              attributes: {
+                ...buildCommonMessagingAttrs(topicFullName, "publish", data),
+                ...spanAttrsFromMessageAttributes(attributes),
+              },
             },
             activeCtx
           );
@@ -330,7 +351,10 @@ export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumenta
               spanName,
               {
                 kind: SpanKind.CONSUMER,
-                attributes: buildCommonMessagingAttrs(subscriptionFullName, "process", msg?.data),
+                attributes: {
+                  ...buildCommonMessagingAttrs(subscriptionFullName, "process", msg?.data),
+                  ...spanAttrsFromMessageAttributes(msg?.attributes as AttributesMap),
+                },
               },
               extracted
             )
