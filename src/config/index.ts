@@ -50,6 +50,14 @@ export interface NoisyOperationSamplingConfig {
 }
 
 export interface HeadSamplingConfig {
+
+	// If true, the sampling decision will be made in dry-run mode.
+	// When dry-run is enabled, the sampling decision will be made but the trace will not be dropped.
+	// This is useful to evaluate the sampling decision before actually committing to it.
+    dryRun?: boolean;
+
+    // configuration for the noisy operations.
+    // if not specified, no noisy operations will be applied.
     noisyOperations: NoisyOperationSamplingConfig[];
 }
 
