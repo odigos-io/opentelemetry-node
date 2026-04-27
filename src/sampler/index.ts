@@ -11,6 +11,7 @@ export class OdigosHeadSampler implements Sampler {
     private serviceRules: NoisyOperationSamplingConfig[];
     private httpServerRules: NoisyOperationSamplingConfig[];
     private httpClientRules: NoisyOperationSamplingConfig[];
+    private dryRun: boolean;
 
     constructor(config: HeadSamplingConfig) {
         this.serviceRules = [];
@@ -30,6 +31,7 @@ export class OdigosHeadSampler implements Sampler {
                 this.httpClientRules.push(rule);
             }
         }
+        this.dryRun = config.dryRun ?? false;
     }
 
     shouldSample(context: Context, traceId: string, spanName: string, spanKind: SpanKind, attributes: Attributes, links: Link[]): SamplingResult {
@@ -60,8 +62,16 @@ export class OdigosHeadSampler implements Sampler {
         const decision = samplingDecisionByPercentage(traceId, keepPercentage);
         // c means category, n means noise.
         // dr means deciding rule, p means percentage, id means deciding rule id.
-        const traceStateString = `odigos=c:n;dr.p:${percentageTwoDecimalPlaces};dr.id:${minPercentageRule.id}`;
+        // dry means dryrun
+        const dryRunString = this.dryRun ? ';dry:' + (decision === SamplingDecision.RECORD_AND_SAMPLED ? 't' : 'f') : '';
+        const traceStateString = `odigos=c:n;dr.p:${percentageTwoDecimalPlaces};dr.id:${minPercentageRule.id}${dryRunString}`;
         const traceState = createTraceState(traceStateString);
+
+        // if dry run is enabled, do not drop the trace (but keep the trace state to record what would have happened)
+        if (this.dryRun) {
+            return { decision: SamplingDecision.RECORD_AND_SAMPLED, traceState };
+        }
+
         return { decision, traceState };
     }
 
