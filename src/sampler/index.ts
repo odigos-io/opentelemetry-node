@@ -1,22 +1,22 @@
 import { Attributes, Context, createTraceState, Link, SpanKind } from "@opentelemetry/api";
 import { Sampler, SamplingDecision, SamplingResult } from "@opentelemetry/sdk-trace-base";
 import { HeadSamplingConfig, NoisyOperationSamplingConfig } from "../config";
-import { matchHttpServerRule } from "./http-server";
-import { matchHttpClientRule } from "./http-client";
 import { parseHttpServerAttributes, parseHttpClientAttributes } from "./utils";
 import { samplingDecisionByPercentage } from "./percentage";
+import { ParsedHttpRule } from "./types";
+import { createHttpMethodMatcher, createHttpPathMatcher, createHttpServerAddressMatcher } from "./path-matching";
 
 export class OdigosHeadSampler implements Sampler {
 
     private serviceRules: NoisyOperationSamplingConfig[];
-    private httpServerRules: NoisyOperationSamplingConfig[];
-    private httpClientRules: NoisyOperationSamplingConfig[];
+    private httpServerRules: ParsedHttpRule[];
+    private httpClientRules: ParsedHttpRule[];
     private dryRun: boolean;
 
     constructor(config: HeadSamplingConfig) {
         this.serviceRules = [];
-        this.httpServerRules = [];
-        this.httpClientRules = [];
+        const httpServerRules: ParsedHttpRule[] = [];
+        const httpClientRules: ParsedHttpRule[] = [];
 
         for (const rule of config.noisyOperations) {
             if (rule.disabled) {
@@ -26,26 +26,34 @@ export class OdigosHeadSampler implements Sampler {
             if (!rule.operation) {
                 this.serviceRules.push(rule);
             } else if (rule.operation.httpServer) {
-                this.httpServerRules.push(rule);
+                const pathMatcher = createHttpPathMatcher(rule.operation.httpServer.route, rule.operation.httpServer.routePrefix);
+                const methodMatcher = createHttpMethodMatcher(rule.operation.httpServer.method);
+                httpServerRules.push({ pathMatcher, methodMatcher, rule });
             } else if (rule.operation.httpClient) {
-                this.httpClientRules.push(rule);
+                const pathMatcher = createHttpPathMatcher(rule.operation.httpClient.templatedPath, rule.operation.httpClient.templatedPathPrefix);
+                const methodMatcher = createHttpMethodMatcher(rule.operation.httpClient.method);
+                const serverAddressMatcher = createHttpServerAddressMatcher(rule.operation.httpClient.serverAddress);
+                httpClientRules.push({ pathMatcher, methodMatcher, serverAddressMatcher, rule });
             }
         }
+        this.httpServerRules = httpServerRules;
+        this.httpClientRules = httpClientRules;
         this.dryRun = config.dryRun ?? false;
     }
 
     shouldSample(context: Context, traceId: string, spanName: string, spanKind: SpanKind, attributes: Attributes, links: Link[]): SamplingResult {
-        const matchedRules: NoisyOperationSamplingConfig[] = [];
-        for (const rule of this.serviceRules) {
-            matchedRules.push(rule);
-        }
+
+        // service rules apply to the entire service, so we always add them to the matched rules.
+        const matchedRules: NoisyOperationSamplingConfig[] = [...this.serviceRules];
 
         switch (spanKind) {
             case SpanKind.SERVER:
-                this.matchHttpServerRules(attributes, matchedRules);
+                const serverRules = this.matchHttpServerRules(attributes);
+                matchedRules.push(...serverRules);
                 break;
             case SpanKind.CLIENT:
-                this.matchHttpClientRules(attributes, matchedRules);
+                const clientRules = this.matchHttpClientRules(attributes);
+                matchedRules.push(...clientRules);
                 break;
         }
 
@@ -75,24 +83,38 @@ export class OdigosHeadSampler implements Sampler {
         return { decision, traceState };
     }
 
-    private matchHttpServerRules(attributes: Attributes, matchedRules: NoisyOperationSamplingConfig[]): void {
+    private matchHttpServerRules(attributes: Attributes): NoisyOperationSamplingConfig[] {
         const parsed = parseHttpServerAttributes(attributes);
-        if (!parsed) return;
-        for (const rule of this.httpServerRules) {
-            if (matchHttpServerRule(rule.operation!.httpServer!, parsed)) {
-                matchedRules.push(rule);
-            }
-        }
+        if (!parsed) return [];
+
+        const routeOrPath = parsed.route || parsed.path;
+        if (!routeOrPath) return []; // http span mush have a route or a path.
+        const segments = routeOrPath.split('/');
+        
+        const upperCaseMethod = parsed.method.toUpperCase();
+
+        return this.httpServerRules
+            .filter(parsedRule => parsedRule.methodMatcher.match(upperCaseMethod))
+            .filter(parsedRule => parsedRule.pathMatcher.match(routeOrPath, segments))
+            .map(parsedRule => parsedRule.rule);
     }
 
-    private matchHttpClientRules(attributes: Attributes, matchedRules: NoisyOperationSamplingConfig[]): void {
+    private matchHttpClientRules(attributes: Attributes): NoisyOperationSamplingConfig[] {
         const parsed = parseHttpClientAttributes(attributes);
-        if (!parsed) return;
-        for (const rule of this.httpClientRules) {
-            if (matchHttpClientRule(rule.operation!.httpClient!, parsed)) {
-                matchedRules.push(rule);
-            }
-        }
+        if (!parsed) return [];
+
+        const httpPath = parsed.templatedPath || parsed.path;
+        if (!httpPath) return []; // http span mush have a path.
+        const segments = httpPath.split('/');
+        
+        const upperCaseMethod = parsed.method.toUpperCase();
+        const lowerCaseServerAddress = parsed.serverAddress?.toLowerCase();
+
+        return this.httpClientRules
+            .filter(parsedRule => parsedRule.methodMatcher.match(upperCaseMethod))
+            .filter(parsedRule => !parsedRule.serverAddressMatcher || parsedRule.serverAddressMatcher.match(lowerCaseServerAddress))
+            .filter(parsedRule => parsedRule.pathMatcher.match(httpPath, segments))
+            .map(parsedRule => parsedRule.rule);
     }
 
     // givin all the head sampling rules that matched, find the rule with minimum percentage.
