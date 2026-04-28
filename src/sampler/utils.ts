@@ -94,6 +94,7 @@ export const parseHttpServerAttributes = (attributes: Attributes): ParsedHttpSer
 
 export interface ParsedHttpClientAttributes {
     method: string;
+    path?: string;
     templatedPath?: string;
     serverAddress?: string;
 }
@@ -105,31 +106,9 @@ export const parseHttpClientAttributes = (attributes: Attributes): ParsedHttpCli
     }
     return {
         method,
+        path: getHttpPathFromAttributes(attributes),
         templatedPath: getHttpTemplatedPathFromAttributes(attributes),
         serverAddress: getServerAddressFromAttributes(attributes),
     };
 }
 
-export const compareHttpMethod = (method: string, ruleMethod: string): boolean => {
-    return method.toUpperCase() === ruleMethod.toUpperCase();
-}
-
-export const compareHttpRoute = (route: string, ruleRouteExact: string | undefined, ruleRoutePrefix: string | undefined ): boolean => {
-    if (ruleRouteExact && route !== ruleRouteExact) {
-        return false;
-    }
-    if (ruleRoutePrefix && !route.startsWith(ruleRoutePrefix)) {
-        return false;
-    }
-    return true;
-}
-
-export const comparePathToTemplate = (path: string, ruleTemplateExact: string | undefined, ruleTemplatePrefix: string | undefined): boolean => {
-    if (ruleTemplateExact && path !== ruleTemplateExact) {
-        return false;
-    }
-    if (ruleTemplatePrefix && !path.startsWith(ruleTemplatePrefix)) {
-        return false;
-    }
-    return true;
-}
