@@ -61,5 +61,8 @@
   "devDependencies": {
     "@types/uuid": "^11.0.0",
     "typescript": "^6.0.2"
+  },
+  "resolutions": {
+    "protobufjs": "^7.5.5"
   }
 }
