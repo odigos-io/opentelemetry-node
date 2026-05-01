@@ -88,3 +88,28 @@ const safeCreateInstrumentationLibrary = (
 export const isCollectingTraces = (remoteConfig: RemoteConfig | undefined): boolean => {
     return remoteConfig?.containerConfig.traces !== undefined;
 }
+
+// givin the relevant configurations for a specific instrumentation library, returns true if the library should be traced.
+export const calculateLibraryTracesEnabled = (collectingTraces: boolean, isDisabledByConfig: boolean, isEnabledByConfig: boolean, isDisabledByDefault: boolean): boolean => {
+
+    // when there is no traces destination or span-metrics, we don't need to collect traces from any instrumentation libraries.
+    if (!collectingTraces) {
+        return false;
+    }
+
+    if (isDisabledByConfig) {
+        return false;
+    }
+
+    // noisy instrumentation libraries are disabled by default.
+    // we check if they are opt-in  (if they are enabled by config)
+    if (isDisabledByDefault) {
+        if (isEnabledByConfig) {
+            return true;
+        }
+        return false;
+    }
+
+    // instrumentation libraries are enabled by default if no other configuration is provided.
+    return true;
+}

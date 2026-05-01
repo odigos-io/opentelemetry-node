@@ -1,6 +1,6 @@
 import { Instrumentation } from "@opentelemetry/instrumentation";
 import { InstrumentationLibraryConfigFunction, InstrumentationLibraryManifest, instrumentationLibraryManifests } from "./config";
-import { createInstrumentationLibraryInstance, isCollectingTraces, parseDisabledInstrumentations, resolveBaseConfig } from "./utils";
+import { calculateLibraryTracesEnabled, createInstrumentationLibraryInstance, isCollectingTraces, parseDisabledInstrumentations, resolveBaseConfig } from "./utils";
 import { diag, ProxyTracerProvider, trace, TracerProvider } from "@opentelemetry/api";
 import { RemoteConfig } from "../opamp";
 
@@ -36,16 +36,29 @@ export class InstrumentationLibraries {
     public updateConfig(remoteConfig: RemoteConfig | undefined, tracerProvider: TracerProvider | undefined): void {
 
         const collectingTraces = isCollectingTraces(remoteConfig);
-        const tracerProviderInUse = collectingTraces && tracerProvider ? tracerProvider : this.noopTracerProvider;
 
-        // set global tracer provider to record traces from 3rd party instrumented libraries
+        const disabledLibraryNames = remoteConfig?.containerConfig.traces?.traceVerbosity?.disabledLibraries
+            ?.map(lib => lib.libraryName);
+        const disabledLibraryNamesSet = new Set(disabledLibraryNames ?? []);
+
+        const enabledLibraryNames = remoteConfig?.containerConfig.traces?.traceVerbosity?.enabledLibraries
+            ?.map(lib => lib.libraryName);
+        const enabledLibraryNamesSet = new Set(enabledLibraryNames ?? []);
+
         for (const [_, instrumentationLibrary] of this.instrumentationLibraries.entries()) {
             const resolvedConfig = resolveBaseConfig(instrumentationLibrary.manifest, remoteConfig);
             const additionalConfig = instrumentationLibrary.additionalConfig?.(instrumentationLibrary.manifest.instrumentationNpmPackage, remoteConfig, resolvedConfig);
             const effectiveConfig = { ...resolvedConfig, ...additionalConfig };
 
             instrumentationLibrary.instrumentationInstance.setConfig(effectiveConfig ?? {});
-            instrumentationLibrary.instrumentationInstance.setTracerProvider(tracerProviderInUse);
+
+            const isDisabledByConfig = disabledLibraryNamesSet.has(instrumentationLibrary.manifest.instrumentationNpmPackage);
+            const isEnabledByConfig = enabledLibraryNamesSet.has(instrumentationLibrary.manifest.instrumentationNpmPackage);
+            const isDisabledByDefault = !!instrumentationLibrary.manifest.disabledByDefault;
+            const tracesEnabled = calculateLibraryTracesEnabled(collectingTraces, isDisabledByConfig, isEnabledByConfig, isDisabledByDefault);
+
+            const libraryProvider = (tracesEnabled && tracerProvider) ? tracerProvider : this.noopTracerProvider;
+            instrumentationLibrary.instrumentationInstance.setTracerProvider(libraryProvider);
         }
     }
 
