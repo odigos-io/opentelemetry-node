@@ -7,7 +7,9 @@
   "author": "Odigos Authors",
   "license": "Apache-2.0",
   "scripts": {
-    "compile": "tsc -p ."
+    "compile": "tsc -p .",
+    "create-cluster": "rm -rf varodigos && mkdir -p varodigos && kind create cluster --config ./development/kind-with-mount.yaml",
+    "build-to-varodigos": "docker build -t odigos/opentelemetry-node -f Dockerfile . && mkdir -p varodigos && CID=$(docker create odigos/opentelemetry-node /_) && docker cp \"$CID:/instrumentations/opentelemetry-node/.\" ./varodigos/ && docker rm \"$CID\""
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",
