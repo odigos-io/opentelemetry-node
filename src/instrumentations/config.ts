@@ -1,6 +1,7 @@
 import { RemoteConfig } from "../opamp";
 import { Instrumentation, InstrumentationConfig } from "@opentelemetry/instrumentation";
 import { PubSubInstrumentation } from "./googlepubsub/pubsub-instrumentation";
+import type { ExpressInstrumentationConfig } from "@opentelemetry/instrumentation-express";
 
 import { getAllHeadersInstrumentationConfig, getHttpHeadersFromRemoteConfig, getSpecificHttpHeadersInstrumentationConfig, isCollectingAllHttpHeaders } from "./header-collection";
 
@@ -20,6 +21,10 @@ export interface InstrumentationLibraryManifest {
     // if the instrumentation has a config, it will be passed to the constructor of the instrumentation class
     // and also be used during the remote config update
     config?: InstrumentationConfig | InstrumentationLibraryConfigFunction;
+
+    // if true, the instrumentation library is disabled by default.
+    // can be enabled as opt-in by adding it to the enabledLibraries list in the traceVerbosity instrumentation rule.
+    disabledByDefault?: boolean;
 }
 
 export const instrumentationLibraryManifests: Map<string, InstrumentationLibraryManifest> = new Map([
@@ -47,22 +52,27 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
         instrumentationNpmPackage: "@opentelemetry/instrumentation-dataloader",
         import: "DataloaderInstrumentation",
     }],
-    // ["@opentelemetry/instrumentation-dns", {
-    //     instrumentationNpmPackage: "@opentelemetry/instrumentation-dns",
-    //     import: "DnsInstrumentation",
-    // }],
+    ["@opentelemetry/instrumentation-dns", {
+        instrumentationNpmPackage: "@opentelemetry/instrumentation-dns",
+        import: "DnsInstrumentation",
+        disabledByDefault: true,
+    }],
     ["@opentelemetry/instrumentation-express", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-express",
         import: "ExpressInstrumentation",
+        config: {
+            ignoreLayers: ["middleware - expressInit", "middleware - query"], // added by default in express and give no real visibility value.
+        } as ExpressInstrumentationConfig
     }],
     ["@opentelemetry/instrumentation-fastify", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-fastify",
         import: "FastifyInstrumentation",
     }],
-    // ["@opentelemetry/instrumentation-fs", {
-    //     instrumentationNpmPackage: "@opentelemetry/instrumentation-fs",
-    //     import: "FsInstrumentation",
-    // }],
+    ["@opentelemetry/instrumentation-fs", {
+        instrumentationNpmPackage: "@opentelemetry/instrumentation-fs",
+        import: "FsInstrumentation",
+        disabledByDefault: true,
+    }],
     ["@opentelemetry/instrumentation-generic-pool", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-generic-pool",
         import: "GenericPoolInstrumentation",
@@ -143,6 +153,11 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
     ["@opentelemetry/instrumentation-nestjs-core", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-nestjs-core",
         import: "NestInstrumentation",
+    }],
+    ["@opentelemetry/instrumentation-net", {
+        instrumentationNpmPackage: "@opentelemetry/instrumentation-net",
+        import: "NetInstrumentation",
+        disabledByDefault: true,
     }],
     ["@opentelemetry/instrumentation-pg", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-pg",

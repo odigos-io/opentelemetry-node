@@ -61,6 +61,26 @@ export interface HeadSamplingConfig {
     noisyOperations: NoisyOperationSamplingConfig[];
 }
 
+export interface InstrumentationLibrary {
+
+    // the programming language of the instrumentation library.
+    // this should already be filtered to include only "javascript"
+    programmingLanguage: string;
+
+    // the name of the instrumentation library.
+    libraryName: string;
+}
+
+// controls which spans should be included or excluded from a trace.
+export interface TraceVerbosityConfig {
+    // list of instrumentation libraries that should be disabled for this trace.
+    disabledLibraries?: InstrumentationLibrary[];
+
+    // list of instrumentation libraries that should be enabled for this trace.
+    // used for opt-in instrumentation libraries that are disabled by default.
+    enabledLibraries?: InstrumentationLibrary[];
+}
+
 export interface TracesConfig {
     // configuration for the traces.
     // it controls the trace and span ids used when starting a new trace or span.
@@ -74,6 +94,8 @@ export interface TracesConfig {
     // configuration for head sampling.
     // if not specified, no head sampling rules will be applied.
     headSampling?: HeadSamplingConfig;
+
+    traceVerbosity?: TraceVerbosityConfig;
 }
 
 export interface ContainerConfig {
