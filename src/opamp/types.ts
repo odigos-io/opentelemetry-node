@@ -24,20 +24,9 @@ export interface TraceSignalGeneralConfig {
   defaultEnabledValue: boolean;
 }
 
-// InstrumentationLibrary Remote Configuration
-export interface InstrumentationLibraryTracesConfiguration {
-  // if the value is set, use it, otherwise use the default value from the trace signal in the sdk level
-  enabled?: boolean;
-}
-export interface InstrumentationLibraryConfiguration {
-  name: string;
-  traces: InstrumentationLibraryTracesConfiguration;
-}
-
 // All remote config fields
 
 export type RemoteConfig = {
-  instrumentationLibraries: InstrumentationLibraryConfiguration[];
   containerConfig: ContainerConfig;
 };
 
