@@ -71,7 +71,6 @@ export class OpAMPClientHttp {
 
     // on any issue connection to opamp server, this will be the default remote config which will be applied
     this.defaultRemoteConfig = {
-      instrumentationLibraries: [],
       containerConfig: {
         traces: {}, // default (if remote config is not set) is to collect traces
       },

@@ -1,1 +1,5 @@
 node_modules # don't include node_modules in the context, as it is being installed fresh in the Dockerfile
+build
+examples
+varodigos
+development
