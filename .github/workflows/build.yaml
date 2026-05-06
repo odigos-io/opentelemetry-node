@@ -20,6 +20,7 @@ jobs:
       - name: Build NodeJS Community Docker image
         uses: depot/build-push-action@v1
         with:
+          project: nodejs-community-agent
           push: false
           context: .
           file: Dockerfile
