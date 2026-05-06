@@ -15,11 +15,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+
+      - uses: depot/setup-action@v1
+
+      - name: Build NodeJS Community Docker image
+        uses: depot/build-push-action@v1
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Install dependencies
-        run: yarn install
-      - name: Build
-        run: yarn compile
+          push: false
+          context: .
+          file: Dockerfile
+          build-args: AGENT_VERSION=ci-build
