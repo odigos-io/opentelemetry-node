@@ -9,6 +9,9 @@ jobs:
 
   build-agent-image:
     runs-on: depot-ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v6
 
@@ -24,6 +27,8 @@ jobs:
 
   build:
     runs-on: depot-ubuntu-24.04
+    permissions:
+      contents: read
     strategy:
       matrix:
         node-version: [18, 20, 22, 24]
