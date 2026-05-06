@@ -6,9 +6,29 @@ on:
       - main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
 
+  build-agent-image:
+    runs-on: depot-ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: depot/setup-action@v1
+
+      - name: Build NodeJS Community Docker image
+        uses: depot/build-push-action@v1
+        with:
+          push: false
+          context: .
+          file: Dockerfile
+          build-args: AGENT_VERSION=ci-build
+
+  build:
+    runs-on: depot-ubuntu-24.04
+    permissions:
+      contents: read
     strategy:
       matrix:
         node-version: [18, 20, 22, 24]
