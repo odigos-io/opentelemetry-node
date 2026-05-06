@@ -227,7 +227,6 @@ jobs:
       - name: Build and push NodeJS Community Docker image
         uses: depot/build-push-action@v1
         with:
-          project: nodejs-community-agent
           platforms: linux/amd64,linux/arm64
           push: true
           context: .
