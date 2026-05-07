@@ -31,8 +31,9 @@ on:
         type: string
 
 env:
-  ECR_REPO_NODEJS_COMMUNITY: public.ecr.aws/odigos/agents/nodejs-community
-  DEPOT_REPO_NODEJS_COMMUNITY: p0xd21zf5r.registry.depot.dev/nodejs-community
+  DOCKER_REPOSITORY_NAME: nodejs-community
+  ECR_REGISTRY: public.ecr.aws/odigos/agents
+  DEPOT_REGISTRY: p0xd21zf5r.registry.depot.dev
 
 jobs:
   # ── 1. Calculate the next version ─────────────────────────────────────────
@@ -205,15 +206,18 @@ jobs:
           aws ecr-public get-login-password --region us-east-1 \
           | docker login --username AWS --password-stdin public.ecr.aws
 
+      - name: Login to Depot Registry
+        run: docker login --username x-token --password ${{ secrets.DEPOT_PUSH_TOKEN }} ${DEPOT_REGISTRY}
+
       - name: Compute Docker tags
         id: docker-tags
         env:
           NEW_VERSION: ${{ needs.calculate.outputs.new_version }}
           IS_PRERELEASE: ${{ needs.calculate.outputs.is_prerelease }}
         run: |
-          COMMUNITY="${ECR_REPO_NODEJS_COMMUNITY}:${NEW_VERSION},${DEPOT_REPO_NODEJS_COMMUNITY}:${NEW_VERSION}"
+          COMMUNITY="${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${DEPOT_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION}"
           if [[ "${IS_PRERELEASE}" == "false" ]]; then
-            COMMUNITY="${COMMUNITY},${ECR_REPO_NODEJS_COMMUNITY}:latest,${DEPOT_REPO_NODEJS_COMMUNITY}:latest"
+            COMMUNITY="${COMMUNITY},${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${DEPOT_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest"
           fi
           echo "community=${COMMUNITY}" >> "$GITHUB_OUTPUT"
 
