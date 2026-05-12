@@ -1,6 +1,5 @@
 import { type MessageInitShape } from "@bufbuild/protobuf";
 import { Attributes } from "@opentelemetry/api";
-import { Resource } from "@opentelemetry/resources";
 import { PackageStatusSchema } from "./generated/opamp_pb";
 import { ContainerConfig } from "../config";
 
@@ -15,13 +14,6 @@ export interface OpAMPClientHttpConfig {
   initialPackageStatues: MessageInitShape<typeof PackageStatusSchema>[];
 
   onNewRemoteConfig: (remoteConfig: RemoteConfig) => void;
-}
-
-// Sdk Remote Configuration
-
-export interface TraceSignalGeneralConfig {
-  enabled: boolean; // if enabled is false, the pipeline is not configured to receive spans
-  defaultEnabledValue: boolean;
 }
 
 // All remote config fields
