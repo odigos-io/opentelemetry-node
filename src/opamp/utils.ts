@@ -1,7 +1,6 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { AttributeValue, Attributes } from "@opentelemetry/api";
-import { type AnyValue, AnyValueSchema, type KeyValue, KeyValueSchema } from "./generated/anyvalue_pb";
-import { ResourceAttributeFromServer } from "./opamp-types";
+import { type AnyValue, AnyValueSchema, KeyValueSchema } from "./generated/anyvalue_pb";
 import { AgentToServerSchema } from "./generated/opamp_pb";
 import { SdkHealthInfo } from "./types";
 
