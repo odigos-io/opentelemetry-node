@@ -1,4 +1,4 @@
-import { Attributes, Context, createTraceState, Link, SpanKind } from "@opentelemetry/api";
+import { Attributes, Context, createTraceState, diag, Link, SpanKind } from "@opentelemetry/api";
 import { Sampler, SamplingDecision, SamplingResult } from "@opentelemetry/sdk-trace-base";
 import { HeadSamplingConfig, NoisyOperationSamplingConfig } from "../config";
 import { parseHttpServerAttributes, parseHttpClientAttributes } from "./utils";
@@ -9,36 +9,43 @@ import { createHttpMethodMatcher, createHttpPathMatcher, createHttpServerAddress
 export class OdigosHeadSampler implements Sampler {
 
     private serviceRules: NoisyOperationSamplingConfig[];
-    private httpServerRules: ParsedHttpRule[];
-    private httpClientRules: ParsedHttpRule[];
-    private dryRun: boolean;
+    private httpServerRules: ParsedHttpRule[] = [];
+    private httpClientRules: ParsedHttpRule[] = [];
+    private dryRun: boolean = false;
 
     constructor(config: HeadSamplingConfig) {
         this.serviceRules = [];
         const httpServerRules: ParsedHttpRule[] = [];
         const httpClientRules: ParsedHttpRule[] = [];
 
-        for (const rule of config.noisyOperations) {
-            if (rule.disabled) {
-                continue;
+        try {
+
+            const noisyOperations = config.noisyOperations ?? [];
+            for (const rule of noisyOperations) {
+                if (rule.disabled) {
+                    continue;
+                }
+                
+                if (!rule.operation) {
+                    this.serviceRules.push(rule);
+                } else if (rule.operation.httpServer) {
+                    const pathMatcher = createHttpPathMatcher(rule.operation.httpServer.route, rule.operation.httpServer.routePrefix);
+                    const methodMatcher = createHttpMethodMatcher(rule.operation.httpServer.method);
+                    httpServerRules.push({ pathMatcher, methodMatcher, rule });
+                } else if (rule.operation.httpClient) {
+                    const pathMatcher = createHttpPathMatcher(rule.operation.httpClient.templatedPath, rule.operation.httpClient.templatedPathPrefix);
+                    const methodMatcher = createHttpMethodMatcher(rule.operation.httpClient.method);
+                    const serverAddressMatcher = createHttpServerAddressMatcher(rule.operation.httpClient.serverAddress);
+                    httpClientRules.push({ pathMatcher, methodMatcher, serverAddressMatcher, rule });
+                }
             }
 
-            if (!rule.operation) {
-                this.serviceRules.push(rule);
-            } else if (rule.operation.httpServer) {
-                const pathMatcher = createHttpPathMatcher(rule.operation.httpServer.route, rule.operation.httpServer.routePrefix);
-                const methodMatcher = createHttpMethodMatcher(rule.operation.httpServer.method);
-                httpServerRules.push({ pathMatcher, methodMatcher, rule });
-            } else if (rule.operation.httpClient) {
-                const pathMatcher = createHttpPathMatcher(rule.operation.httpClient.templatedPath, rule.operation.httpClient.templatedPathPrefix);
-                const methodMatcher = createHttpMethodMatcher(rule.operation.httpClient.method);
-                const serverAddressMatcher = createHttpServerAddressMatcher(rule.operation.httpClient.serverAddress);
-                httpClientRules.push({ pathMatcher, methodMatcher, serverAddressMatcher, rule });
-            }
+            this.httpServerRules = httpServerRules;
+            this.httpClientRules = httpClientRules;
+            this.dryRun = config.dryRun ?? false;
+        } catch (error) {
+            diag.error('Error initializing OdigosHeadSampler:', error);
         }
-        this.httpServerRules = httpServerRules;
-        this.httpClientRules = httpClientRules;
-        this.dryRun = config.dryRun ?? false;
     }
 
     shouldSample(context: Context, traceId: string, spanName: string, spanKind: SpanKind, attributes: Attributes, links: Link[]): SamplingResult {
@@ -90,7 +97,7 @@ export class OdigosHeadSampler implements Sampler {
         const routeOrPath = parsed.route || parsed.path;
         if (!routeOrPath) return []; // http span mush have a route or a path.
         const segments = routeOrPath.split('/');
-        
+
         const upperCaseMethod = parsed.method.toUpperCase();
 
         return this.httpServerRules
@@ -106,7 +113,7 @@ export class OdigosHeadSampler implements Sampler {
         const httpPath = parsed.templatedPath || parsed.path;
         if (!httpPath) return []; // http span mush have a path.
         const segments = httpPath.split('/');
-        
+
         const upperCaseMethod = parsed.method.toUpperCase();
         const lowerCaseServerAddress = parsed.serverAddress?.toLowerCase();
 

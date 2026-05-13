@@ -58,7 +58,7 @@ export interface HeadSamplingConfig {
 
     // configuration for the noisy operations.
     // if not specified, no noisy operations will be applied.
-    noisyOperations: NoisyOperationSamplingConfig[];
+    noisyOperations?: NoisyOperationSamplingConfig[];
 }
 
 export interface InstrumentationLibrary {
