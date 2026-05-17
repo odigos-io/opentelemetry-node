@@ -4,7 +4,7 @@ import { Span } from "@opentelemetry/api";
 import { ClientRequest, IncomingMessage, ServerResponse } from "http";
 
 export const getHttpHeadersFromRemoteConfig = (remoteConfig: RemoteConfig | undefined): string[] | undefined => {
-    return remoteConfig?.containerConfig?.traces?.headersCollection?.httpHeaderKeys;
+    return remoteConfig?.containerConfig?.traces?.headersCollection?.headerKeys;
 }
 
 export const isCollectingAllHttpHeaders = (headerKeys: string[] | undefined): boolean => {
