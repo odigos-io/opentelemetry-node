@@ -20,7 +20,7 @@ export interface IdGeneratorConfig {
 // configuration for the http headers collection.
 export interface HeadersCollectionConfig {
     // only the keys in this list will be collected and added as attributes to the spans.
-    httpHeaderKeys: string[];
+    headerKeys: string[];
 }
 
 export interface HeadSamplingOperationMatcher {
