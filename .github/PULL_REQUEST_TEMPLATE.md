@@ -13,3 +13,9 @@ If yes, please add a release note in the block below describing this in 1-2 sent
 ```release-note
 
 ```
+
+<!--
+Cherry-pick (optional): to backport to release branches after merge, add a line like:
+cherry-pick: v0.6
+Comma-separated versions are supported, e.g. cherry-pick: v0.6, v0.7
+-->
