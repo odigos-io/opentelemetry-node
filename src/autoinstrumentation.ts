@@ -69,6 +69,14 @@ export interface StartOpenTelemetryAgentOptions {
 // agent implementation (for example - eBPF span processor for enterprise agent)
 export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions): InstrumentationLibrariesTracerProviderSetter | undefined => {
   const { distroName, opampServerHost, spanProcessorExporting, additionalConfigs, configUpdateCallback } = options;
+
+  if (!opampServerHost) {
+    diag.error(
+      "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST"
+    );
+    return undefined;
+  }
+
   const staticResource = resourceFromAttributes({
     [ATTR_TELEMETRY_DISTRO_NAME]: distroName,
     [ATTR_TELEMETRY_DISTRO_VERSION]: VERSION,
