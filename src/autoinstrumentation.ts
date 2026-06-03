@@ -52,10 +52,24 @@ export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
   return new BatchSpanProcessor(new OTLPTraceExporter());
 }
 
+export interface StartOpenTelemetryAgentOptions {
+  distroName: string;
+  opampServerHost: string;
+  spanProcessorExporting: SpanProcessor;
+  additionalConfigs?: Record<string, InstrumentationLibraryConfigFunction>;
+
+  // this option is used by the distro (community or enterprise) to get notified
+  // when the remote config is updated, and allows the distro to update additional components
+  // (like the processor) or any additional distro-specific behavior.
+  configUpdateCallback?: (remoteConfig: RemoteConfig) => void;
+}
+
 // this function is meant to be called by the specific agent implementation.
 // it allows the agent to provide its own span processor, depending on the
 // agent implementation (for example - eBPF span processor for enterprise agent)
-export const startOpenTelemetryAgent = (distroName: string, opampServerHost: string, spanProcessorExporting: SpanProcessor, additionalConfigs: Record<string, InstrumentationLibraryConfigFunction> | undefined): InstrumentationLibrariesTracerProviderSetter | undefined => {
+export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions): InstrumentationLibrariesTracerProviderSetter | undefined => {
+  const { distroName, opampServerHost, spanProcessorExporting, additionalConfigs, configUpdateCallback } = options;
+
   if (!opampServerHost) {
     diag.error(
       "Missing required environment variables ODIGOS_OPAMP_SERVER_HOST"
@@ -107,6 +121,8 @@ export const startOpenTelemetryAgent = (distroName: string, opampServerHost: str
     agentDescriptionIdentifyingAttributes,
     agentDescriptionNonIdentifyingAttributes: {},
     onNewRemoteConfig: (remoteConfig: RemoteConfig) => {
+
+      configUpdateCallback?.(remoteConfig);
 
       // set the tracer provider based on if traces are enabled or not.
       let tracerProvider: TracerProvider | undefined;
