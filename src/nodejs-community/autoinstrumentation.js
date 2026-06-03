@@ -17,7 +17,11 @@ try {
 
         // Create a span processor and start the OpenTelemetry agent.
         var spanProcessor = createNativeCommunitySpanProcessor();
-        startOpenTelemetryAgent('nodejs-community', opampServerHost, spanProcessor);
+        startOpenTelemetryAgent({
+            distroName: 'nodejs-community',
+            opampServerHost: opampServerHost,
+            spanProcessorExporting: spanProcessor,
+        });
     }    
 } catch (e) {
     console.error('Odigos: Failed to load OpenTelemetry auto-instrumentation agent native-community', e);
