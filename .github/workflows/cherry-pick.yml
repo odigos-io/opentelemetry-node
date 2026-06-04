@@ -20,6 +20,7 @@ jobs:
       pr_title: ${{ steps.extract.outputs.pr_title }}
       pr_user_login: ${{ steps.extract.outputs.pr_user_login }}
       original_pr_body: ${{ steps.extract.outputs.original_pr_body }}
+      major_version: "0"
     steps:
       - name: Extract cherry-pick targets
         id: extract
