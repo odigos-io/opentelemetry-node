@@ -1,4 +1,4 @@
-import { Attributes, Context, createTraceState, diag, Link, SpanKind } from "@opentelemetry/api";
+import { Attributes, Context, createTraceState, DiagLogger, Link, SpanKind } from "@opentelemetry/api";
 import { Sampler, SamplingDecision, SamplingResult } from "@opentelemetry/sdk-trace-base";
 import { HeadSamplingConfig, NoisyOperationSamplingConfig } from "../config";
 import { parseHttpServerAttributes, parseHttpClientAttributes } from "./utils";
@@ -12,8 +12,10 @@ export class OdigosHeadSampler implements Sampler {
     private httpServerRules: ParsedHttpRule[] = [];
     private httpClientRules: ParsedHttpRule[] = [];
     private dryRun: boolean = false;
+    private readonly logger: DiagLogger;
 
-    constructor(config: HeadSamplingConfig) {
+    constructor(config: HeadSamplingConfig, logger: DiagLogger) {
+        this.logger = logger;
         this.serviceRules = [];
         const httpServerRules: ParsedHttpRule[] = [];
         const httpClientRules: ParsedHttpRule[] = [];
@@ -43,8 +45,18 @@ export class OdigosHeadSampler implements Sampler {
             this.httpServerRules = httpServerRules;
             this.httpClientRules = httpClientRules;
             this.dryRun = config.dryRun ?? false;
+
+            this.logger.info("Initialized OdigosHeadSampler", {
+                noisyOperations: {
+                    numServiceRules: this.serviceRules.length,
+                    numHttpServerRules: this.httpServerRules.length,
+                    numHttpClientRules: this.httpClientRules.length,
+                },
+                dryRun: this.dryRun,
+            });
+
         } catch (error) {
-            diag.error('Error initializing OdigosHeadSampler:', error);
+            this.logger.error('Error initializing OdigosHeadSampler:', error);
         }
     }
 
@@ -82,6 +94,15 @@ export class OdigosHeadSampler implements Sampler {
         const traceStateString = `odigos=c:n;dr.p:${percentageTwoDecimalPlaces};dr.id:${minPercentageRule.id}${dryRunString}`;
         const traceState = createTraceState(traceStateString);
 
+        this.logger.debug("Odigos Sampling Decision", {
+            traceId,
+            spanName,
+            spanKind,
+            attributes,
+            decision,
+            traceState,
+        });
+        
         // if dry run is enabled, do not drop the trace (but keep the trace state to record what would have happened)
         if (this.dryRun) {
             return { decision: SamplingDecision.RECORD_AND_SAMPLED, traceState };
