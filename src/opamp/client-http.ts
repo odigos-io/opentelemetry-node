@@ -13,7 +13,7 @@ import {
 import { OpAMPClientHttpConfig, RemoteConfig, SdkHealthStatus, SdkHealthInfo } from "./types";
 import { otelAttributesToKeyValuePairs, sdkHealthInfoToOpampMessage } from "./utils";
 import axios, { AxiosInstance } from "axios";
-import { context, diag } from "@opentelemetry/api";
+import { context, DiagLogger } from "@opentelemetry/api";
 import { suppressTracing } from "@opentelemetry/core";
 import { extractRemoteConfigFromResponse } from "./remote-config";
 
@@ -22,9 +22,7 @@ export class OpAMPClientHttp {
   private OpAMPInstanceUidBytes: Uint8Array;
   private nextSequenceNum: bigint = BigInt(0);
   private httpClient: AxiosInstance;
-  private logger = diag.createComponentLogger({
-    namespace: "@odigos/opentelemetry-node/opamp",
-  });
+  private logger: DiagLogger;
   private remoteConfigStatus: RemoteConfigStatus | undefined;
   // the remote config to use when we failed to get data from the server
   private defaultRemoteConfig: RemoteConfig;
@@ -36,6 +34,7 @@ export class OpAMPClientHttp {
 
   constructor(config: OpAMPClientHttpConfig) {
     this.config = config;
+    this.logger = config.logger;
     this.OpAMPInstanceUidBytes = new TextEncoder().encode(
       this.config.serviceInstanceId
     );

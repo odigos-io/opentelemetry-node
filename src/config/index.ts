@@ -98,8 +98,22 @@ export interface TracesConfig {
     traceVerbosity?: TraceVerbosityConfig;
 }
 
+export type AgentLogLevel = "error" | "warn" | "info" | "debug";
+
+export interface AgentDiagnosticsConfig {
+    // The log level of the odigos agent itself (startup, config, features, instrumentation loading, etc.)
+    odigosLogLevel?: AgentLogLevel;
+
+    // The log level of the OpenTelemetry components (SDK, instrumentation libraries, detectors, etc.)
+    // If unset, no OpenTelemetry components logs will be collected.
+    openTelemetryComponentsLogLevel?: AgentLogLevel;
+}
+
 export interface ContainerConfig {
     // configuration for the traces.
     // null if traces should not be collected globally (regardless of any other configuration).
     traces?: TracesConfig;
+
+    // Configure the log level for the agent itself.
+    agentDiagnostics?: AgentDiagnosticsConfig;
 }

@@ -11,6 +11,9 @@ try {
         var opentelemetryNode = require('../opentelemetry-node');
         var createNativeCommunitySpanProcessor = opentelemetryNode.createNativeCommunitySpanProcessor;
         var startOpenTelemetryAgent = opentelemetryNode.startOpenTelemetryAgent;
+        var createOdigosDiag = opentelemetryNode.createOdigosDiag;
+        var logger = createOdigosDiag();
+        logger.info("Loading Odigos OpenTelemetry auto-instrumentation agent");
 
         // Retrieve environment variables.
         var opampServerHost = process.env.ODIGOS_OPAMP_SERVER_HOST;
@@ -21,6 +24,7 @@ try {
             distroName: 'nodejs-community',
             opampServerHost: opampServerHost,
             spanProcessorExporting: spanProcessor,
+            logger: logger,
         });
     }    
 } catch (e) {

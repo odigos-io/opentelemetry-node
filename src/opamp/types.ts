@@ -1,5 +1,5 @@
 import { type MessageInitShape } from "@bufbuild/protobuf";
-import { Attributes } from "@opentelemetry/api";
+import { Attributes, DiagLogger } from "@opentelemetry/api";
 import { PackageStatusSchema } from "./generated/opamp_pb";
 import { ContainerConfig } from "../config";
 
@@ -12,6 +12,8 @@ export interface OpAMPClientHttpConfig {
   agentDescriptionNonIdentifyingAttributes?: Attributes;
 
   initialPackageStatues: MessageInitShape<typeof PackageStatusSchema>[];
+
+  logger: DiagLogger;
 
   onNewRemoteConfig: (remoteConfig: RemoteConfig) => void;
 }
