@@ -1,14 +1,31 @@
 import {
     ComponentLoggerOptions,
-    DiagConsoleLogger,
     DiagLogFunction,
     DiagLogLevel,
     DiagLogger,
 } from "@opentelemetry/api";
+import { AgentLogLevel } from "../config";
 
 export interface OdigosDiagLogger extends DiagLogger {
     createComponentLogger(options: ComponentLoggerOptions): DiagLogger;
+    updateConfig(configLogLevel?: AgentLogLevel): void;
 }
+
+const agentLogLevelMap: Record<AgentLogLevel, DiagLogLevel> = {
+    error: DiagLogLevel.ERROR,
+    warn: DiagLogLevel.WARN,
+    info: DiagLogLevel.INFO,
+    debug: DiagLogLevel.DEBUG,
+};
+
+const agentLogLevelToDiagLogLevel = (
+    logLevel?: AgentLogLevel
+): DiagLogLevel => {
+    if (!logLevel) {
+        return DiagLogLevel.NONE;
+    }
+    return agentLogLevelMap[logLevel];
+};
 
 const noopLogger: DiagLogger = {
     error: () => {},
@@ -52,36 +69,44 @@ const createLogLevelFilteredLogger = (
 class OdigosComponentLogger implements DiagLogger {
     constructor(
         private readonly namespace: string,
-        private readonly logger: DiagLogger
+        private readonly getLogger: () => DiagLogger
     ) {}
 
     error: DiagLogFunction = (...args) =>
-        this.logger.error(this.namespace, ...args);
+        this.getLogger().error(this.namespace, ...args);
     warn: DiagLogFunction = (...args) =>
-        this.logger.warn(this.namespace, ...args);
+        this.getLogger().warn(this.namespace, ...args);
     info: DiagLogFunction = (...args) =>
-        this.logger.info(this.namespace, ...args);
+        this.getLogger().info(this.namespace, ...args);
     debug: DiagLogFunction = (...args) =>
-        this.logger.debug(this.namespace, ...args);
+        this.getLogger().debug(this.namespace, ...args);
     verbose: DiagLogFunction = (...args) =>
-        this.logger.verbose(this.namespace, ...args);
+        this.getLogger().verbose(this.namespace, ...args);
 }
 
 export class OdigosDiag implements OdigosDiagLogger {
-    private logger: DiagLogger;
+    private logger: DiagLogger = noopLogger;
+    private outputLogger: DiagLogger;
 
-    constructor(logLevel?: DiagLogLevel) {
-        this.logger =
-            logLevel === undefined || logLevel === DiagLogLevel.NONE
-                ? noopLogger
-                : createLogLevelFilteredLogger(
-                      logLevel,
-                      new DiagConsoleLogger()
-                  );
+    constructor(logLevel: DiagLogLevel, logger: DiagLogger) {
+        this.outputLogger = logger;
+        this.setLogLevel(logLevel, logger);
+    }
+
+    private setLogLevel(logLevel: DiagLogLevel, logger: DiagLogger): void {
+        if (logLevel === DiagLogLevel.NONE) {
+            this.logger = noopLogger;
+        } else {
+            this.logger = createLogLevelFilteredLogger(logLevel, logger);
+        }
+    }
+
+    updateConfig(configLogLevel?: AgentLogLevel): void {
+        this.setLogLevel(agentLogLevelToDiagLogLevel(configLogLevel), this.outputLogger);
     }
 
     createComponentLogger(options: ComponentLoggerOptions): DiagLogger {
-        return new OdigosComponentLogger(options.namespace, this.logger);
+        return new OdigosComponentLogger(options.namespace, () => this.logger);
     }
 
     error: DiagLogFunction = (...args) => this.logger.error(...args);

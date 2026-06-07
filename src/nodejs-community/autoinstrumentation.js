@@ -12,9 +12,6 @@ try {
         var createNativeCommunitySpanProcessor = opentelemetryNode.createNativeCommunitySpanProcessor;
         var startOpenTelemetryAgent = opentelemetryNode.startOpenTelemetryAgent;
         var createOdigosDiag = opentelemetryNode.createOdigosDiag;
-        var setOtelDiagLoggerToConsole = opentelemetryNode.setOtelDiagLoggerToConsole;
-
-        setOtelDiagLoggerToConsole();
         var logger = createOdigosDiag();
         logger.info("Loading Odigos OpenTelemetry auto-instrumentation agent");
 

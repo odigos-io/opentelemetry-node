@@ -13,10 +13,13 @@ const logLevelMap: { [key: string]: DiagLogLevel } = {
     NONE: DiagLogLevel.NONE,
 };
 
-export const logLevelFromEnvVar = (envVarName: string): DiagLogLevel | undefined => {
+export const logLevelFromEnvVar = (envVarName: string): DiagLogLevel => {
+    if (!envVarName) {
+        return DiagLogLevel.NONE;
+    }
     const logLevel = process.env[envVarName];
     if (!logLevel) {
-        return undefined;
+        return DiagLogLevel.NONE;
     }
     return logLevelMap[logLevel.toUpperCase()];
 };

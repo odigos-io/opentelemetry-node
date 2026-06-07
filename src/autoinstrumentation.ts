@@ -1,7 +1,7 @@
 import { TracerProvider } from "@opentelemetry/api";
 import type { OdigosDiagLogger } from "./diag/OdigosDiag";
 
-export { createOdigosDiag, setOtelDiagLoggerToConsole } from "./diag";
+export { createOdigosDiag } from "./diag";
 
 import { uuidv7 } from "uuidv7";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
@@ -39,6 +39,7 @@ import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
 import { idGeneratorFromConfig } from "./id-generator";
 import { OdigosHeadSampler } from "./sampler";
 import { InstrumentationLibraryConfigFunction } from "./instrumentations/config";
+import { createAndRegisterOtelDiag } from "./diag";
 
 const serviceInstanceId = uuidv7();
 
@@ -69,6 +70,8 @@ export interface StartOpenTelemetryAgentOptions {
 // agent implementation (for example - eBPF span processor for enterprise agent)
 export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions): InstrumentationLibrariesTracerProviderSetter | undefined => {
   const { distroName, opampServerHost, spanProcessorExporting, additionalConfigs, configUpdateCallback, logger } = options;
+
+  const otelDiag = createAndRegisterOtelDiag();
 
   const componentLogger = logger.createComponentLogger({
     namespace: "@odigos/opentelemetry-node",
@@ -134,38 +137,44 @@ export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions)
       namespace: "@odigos/opentelemetry-node/opamp",
     }),
     onNewRemoteConfig: (remoteConfig: RemoteConfig) => {
+      try {
+        componentLogger.info("Applying new remote config", {
+          remoteConfig,
+        });
 
-      componentLogger.info("Applying new remote config", {
-        remoteConfig,
-      });
+        configUpdateCallback?.(remoteConfig);
 
-      configUpdateCallback?.(remoteConfig);
+        logger.updateConfig(remoteConfig.containerConfig?.agentDiagnostics?.odigosLogLevel);
+        otelDiag.updateConfig(remoteConfig.containerConfig?.agentDiagnostics?.openTelemetryComponentsLogLevel);
 
-      // set the tracer provider based on if traces are enabled or not.
-      let tracerProvider: TracerProvider | undefined;
-      if (remoteConfig.containerConfig.traces) {
-        const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
-        const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
+        // set the tracer provider based on if traces are enabled or not.
+        let tracerProvider: TracerProvider | undefined;
+        if (remoteConfig.containerConfig.traces) {
+          const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
+          const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
 
-        var sampler: Sampler | undefined = undefined;
-        const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
-        if (headSamplingConfig) {
-          sampler = new ParentBasedSampler({
-            root: new OdigosHeadSampler(headSamplingConfig, componentLogger),
+          var sampler: Sampler | undefined = undefined;
+          const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
+          if (headSamplingConfig) {
+            sampler = new ParentBasedSampler({
+              root: new OdigosHeadSampler(headSamplingConfig, componentLogger),
+            });
+          }
+
+          const nodeTracerProvider = new NodeTracerProvider({
+            sampler,
+            resource,
+            idGenerator,
+            spanProcessors: [spanProcessorExporting],
           });
+          tracerProvider = nodeTracerProvider;
         }
 
-        const nodeTracerProvider = new NodeTracerProvider({
-          sampler,
-          resource,
-          idGenerator,
-          spanProcessors: [spanProcessorExporting],
-        });
-        tracerProvider = nodeTracerProvider;
+        instrumentationLibraries.updateConfig(remoteConfig, tracerProvider);
+        opampClient.setSdkHealthy();
+      } catch (err) {
+        componentLogger.error("Error applying new remote config", err);
       }
-
-      instrumentationLibraries.updateConfig(remoteConfig, tracerProvider);
-      opampClient.setSdkHealthy();
     },
     initialPackageStatues: [], // TODO: fill this up
   });

@@ -6,6 +6,10 @@ import { samplingDecisionByPercentage } from "./percentage";
 import { ParsedHttpRule } from "./types";
 import { createHttpMethodMatcher, createHttpPathMatcher, createHttpServerAddressMatcher } from "./path-matching";
 
+const spanKindToString = (spanKind: SpanKind): string => {
+    return SpanKind[spanKind] ?? String(spanKind);
+}
+
 export class OdigosHeadSampler implements Sampler {
 
     private serviceRules: NoisyOperationSamplingConfig[];
@@ -78,6 +82,12 @@ export class OdigosHeadSampler implements Sampler {
 
         // no rules matched, so we keep it.
         if (matchedRules.length === 0) {
+            this.logger.debug("no head sampling rules matched for root span, keeping trace", {
+                traceId,
+                spanName,
+                spanKind: spanKindToString(spanKind),
+                attributes,
+            });
             return { decision: SamplingDecision.RECORD_AND_SAMPLED };
         }
 
@@ -94,10 +104,10 @@ export class OdigosHeadSampler implements Sampler {
         const traceStateString = `odigos=c:n;dr.p:${percentageTwoDecimalPlaces};dr.id:${minPercentageRule.id}${dryRunString}`;
         const traceState = createTraceState(traceStateString);
 
-        this.logger.debug("Odigos Sampling Decision", {
+        this.logger.debug("head sampling rule matched for root span", {
             traceId,
             spanName,
-            spanKind,
+            spanKind: spanKindToString(spanKind),
             attributes,
             decision,
             traceState,
