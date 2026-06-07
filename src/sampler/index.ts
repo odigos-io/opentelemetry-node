@@ -1,10 +1,11 @@
 import { Attributes, Context, createTraceState, DiagLogger, Link, SpanKind } from "@opentelemetry/api";
 import { Sampler, SamplingDecision, SamplingResult } from "@opentelemetry/sdk-trace-base";
 import { HeadSamplingConfig, NoisyOperationSamplingConfig } from "../config";
-import { parseHttpServerAttributes, parseHttpClientAttributes } from "./utils";
+import { parseHttpServerAttributes, parseHttpClientAttributes, parseGrpcServerAttributes, parseGrpcClientAttributes } from "./utils";
 import { samplingDecisionByPercentage } from "./percentage";
-import { ParsedHttpRule } from "./types";
+import { ParsedGrpcRule, ParsedHttpRule } from "./types";
 import { createHttpMethodMatcher, createHttpPathMatcher, createHttpServerAddressMatcher } from "./path-matching";
+import { createGrpcMethodMatcher, createGrpcServiceMatcher } from "./grpc-matching";
 
 const spanKindToString = (spanKind: SpanKind): string => {
     return SpanKind[spanKind] ?? String(spanKind);
@@ -15,6 +16,8 @@ export class OdigosHeadSampler implements Sampler {
     private serviceRules: NoisyOperationSamplingConfig[];
     private httpServerRules: ParsedHttpRule[] = [];
     private httpClientRules: ParsedHttpRule[] = [];
+    private grpcServerRules: ParsedGrpcRule[] = [];
+    private grpcClientRules: ParsedGrpcRule[] = [];
     private dryRun: boolean = false;
     private readonly logger: DiagLogger;
 
@@ -23,6 +26,8 @@ export class OdigosHeadSampler implements Sampler {
         this.serviceRules = [];
         const httpServerRules: ParsedHttpRule[] = [];
         const httpClientRules: ParsedHttpRule[] = [];
+        const grpcServerRules: ParsedGrpcRule[] = [];
+        const grpcClientRules: ParsedGrpcRule[] = [];
 
         try {
 
@@ -31,7 +36,7 @@ export class OdigosHeadSampler implements Sampler {
                 if (rule.disabled) {
                     continue;
                 }
-                
+
                 if (!rule.operation) {
                     this.serviceRules.push(rule);
                 } else if (rule.operation.httpServer) {
@@ -43,11 +48,22 @@ export class OdigosHeadSampler implements Sampler {
                     const methodMatcher = createHttpMethodMatcher(rule.operation.httpClient.method);
                     const serverAddressMatcher = createHttpServerAddressMatcher(rule.operation.httpClient.serverAddress);
                     httpClientRules.push({ pathMatcher, methodMatcher, serverAddressMatcher, rule });
+                } else if (rule.operation.grpcServer) {
+                    const methodMatcher = createGrpcMethodMatcher(rule.operation.grpcServer.method);
+                    const serviceMatcher = createGrpcServiceMatcher(rule.operation.grpcServer.service);
+                    grpcServerRules.push({ methodMatcher, serviceMatcher, rule });
+                } else if (rule.operation.grpcClient) {
+                    const methodMatcher = createGrpcMethodMatcher(rule.operation.grpcClient.method);
+                    const serviceMatcher = createGrpcServiceMatcher(rule.operation.grpcClient.service);
+                    const serverAddressMatcher = createHttpServerAddressMatcher(rule.operation.grpcClient.serverAddress);
+                    grpcClientRules.push({ methodMatcher, serviceMatcher, serverAddressMatcher, rule });
                 }
             }
 
             this.httpServerRules = httpServerRules;
             this.httpClientRules = httpClientRules;
+            this.grpcServerRules = grpcServerRules;
+            this.grpcClientRules = grpcClientRules;
             this.dryRun = config.dryRun ?? false;
 
             this.logger.info("Initialized OdigosHeadSampler", {
@@ -55,6 +71,8 @@ export class OdigosHeadSampler implements Sampler {
                     numServiceRules: this.serviceRules.length,
                     numHttpServerRules: this.httpServerRules.length,
                     numHttpClientRules: this.httpClientRules.length,
+                    numGrpcServerRules: this.grpcServerRules.length,
+                    numGrpcClientRules: this.grpcClientRules.length,
                 },
                 dryRun: this.dryRun,
             });
@@ -69,14 +87,17 @@ export class OdigosHeadSampler implements Sampler {
         // service rules apply to the entire service, so we always add them to the matched rules.
         const matchedRules: NoisyOperationSamplingConfig[] = [...this.serviceRules];
 
+        // HTTP and gRPC rules can coexist on SERVER/CLIENT spans; each matcher self-gates by
+        // attribute presence (HTTP needs http.* / url.*, gRPC needs rpc.* + rpc.system != non-grpc),
+        // so we evaluate both and let the rule definitions decide which actually applies.
         switch (spanKind) {
             case SpanKind.SERVER:
-                const serverRules = this.matchHttpServerRules(attributes);
-                matchedRules.push(...serverRules);
+                matchedRules.push(...this.matchHttpServerRules(attributes));
+                matchedRules.push(...this.matchGrpcServerRules(attributes));
                 break;
             case SpanKind.CLIENT:
-                const clientRules = this.matchHttpClientRules(attributes);
-                matchedRules.push(...clientRules);
+                matchedRules.push(...this.matchHttpClientRules(attributes));
+                matchedRules.push(...this.matchGrpcClientRules(attributes));
                 break;
         }
 
@@ -112,7 +133,7 @@ export class OdigosHeadSampler implements Sampler {
             decision,
             traceState,
         });
-        
+
         // if dry run is enabled, do not drop the trace (but keep the trace state to record what would have happened)
         if (this.dryRun) {
             return { decision: SamplingDecision.RECORD_AND_SAMPLED, traceState };
@@ -152,6 +173,37 @@ export class OdigosHeadSampler implements Sampler {
             .filter(parsedRule => parsedRule.methodMatcher.match(upperCaseMethod))
             .filter(parsedRule => !parsedRule.serverAddressMatcher || parsedRule.serverAddressMatcher.match(lowerCaseServerAddress))
             .filter(parsedRule => parsedRule.pathMatcher.match(httpPath, segments))
+            .map(parsedRule => parsedRule.rule);
+    }
+
+    private matchGrpcServerRules(attributes: Attributes): NoisyOperationSamplingConfig[] {
+        console.log("attributes", {attributes});
+        if (this.grpcServerRules.length === 0) return [];
+        const parsed = parseGrpcServerAttributes(attributes);
+        console.log("parsed", {parsed,attributes});
+        if (!parsed) return [];
+
+        return this.grpcServerRules
+            .filter(parsedRule => parsedRule.serviceMatcher.match(parsed.service))
+            .filter(parsedRule => parsedRule.methodMatcher.match(parsed.method))
+            .map(parsedRule => parsedRule.rule);
+    }
+
+    private matchGrpcClientRules(attributes: Attributes): NoisyOperationSamplingConfig[] {
+        console.log("attributes", {attributes});
+        if (this.grpcClientRules.length === 0) return [];
+        const parsed = parseGrpcClientAttributes(attributes);
+        console.log("parsed", {parsed,attributes});
+        if (!parsed) return [];
+
+        // server.address comparison reuses the HTTP server-address matcher (case-insensitive
+        // exact match), so we lowercase here for consistency with that matcher's contract.
+        const lowerCaseServerAddress = parsed.serverAddress?.toLowerCase();
+
+        return this.grpcClientRules
+            .filter(parsedRule => parsedRule.serviceMatcher.match(parsed.service))
+            .filter(parsedRule => parsedRule.methodMatcher.match(parsed.method))
+            .filter(parsedRule => !parsedRule.serverAddressMatcher || parsedRule.serverAddressMatcher.match(lowerCaseServerAddress))
             .map(parsedRule => parsedRule.rule);
     }
 

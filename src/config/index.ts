@@ -26,6 +26,8 @@ export interface HeadersCollectionConfig {
 export interface HeadSamplingOperationMatcher {
     httpServer?: HttpSamplingOperationMatcherServer;
     httpClient?: HttpSamplingOperationMatcherClient;
+    grpcServer?: GrpcSamplingOperationMatcherServer;
+    grpcClient?: GrpcSamplingOperationMatcherClient;
 }
 
 export interface HttpSamplingOperationMatcherServer {
@@ -39,6 +41,27 @@ export interface HttpSamplingOperationMatcherClient {
     templatedPath?: string;
     templatedPathPrefix?: string;
     method?: string;
+}
+
+// Match incoming gRPC calls received by a server. Method and Service are matched independently
+// (AND-ed; empty fields act as wildcards) to mirror how users think of gRPC: the bare method
+// name (e.g. "ListItems") and the fully-qualified service name (e.g. "acme.inventory.v1.InventoryService").
+// The agent supports both OTel semconv conventions transparently — the older split form
+// (rpc.service + bare rpc.method) and the newer fully-qualified form (rpc.method = "Service/method"
+// with rpc.service deprecated). See src/sampler/utils.ts for the splitting logic.
+export interface GrpcSamplingOperationMatcherServer {
+    // bare gRPC method name (e.g. "ListItems"); empty = match any method
+    method?: string;
+    // fully-qualified gRPC service name (e.g. "acme.inventory.v1.InventoryService"); empty = match any service
+    service?: string;
+}
+
+// Match outbound gRPC calls made by the source. Same method/service semantics as server,
+// plus optional serverAddress to constrain by the remote host.
+export interface GrpcSamplingOperationMatcherClient {
+    method?: string;
+    service?: string;
+    serverAddress?: string;
 }
 
 export interface NoisyOperationSamplingConfig {

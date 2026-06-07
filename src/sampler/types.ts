@@ -25,3 +25,22 @@ export type ParsedHttpRule = {
     serverAddressMatcher?: HttpServerAddressMatcher;
     rule: NoisyOperationSamplingConfig;
 }
+
+// gRPC matchers. Case-sensitive exact match on the bare method and fully-qualified service.
+// Empty rule fields are wildcards; absent span attributes cause a rule with a constraint on
+// that attribute to miss.
+export interface GrpcMethodMatcher {
+    match(method: string | undefined): boolean;
+}
+
+export interface GrpcServiceMatcher {
+    match(service: string | undefined): boolean;
+}
+
+export type ParsedGrpcRule = {
+    methodMatcher: GrpcMethodMatcher;
+    serviceMatcher: GrpcServiceMatcher;
+    // server address is optional (client-only).
+    serverAddressMatcher?: HttpServerAddressMatcher;
+    rule: NoisyOperationSamplingConfig;
+}
