@@ -1,7 +1,13 @@
 import { RemoteConfig } from "../opamp";
 import { Instrumentation, InstrumentationConfig } from "@opentelemetry/instrumentation";
 import { PubSubInstrumentation } from "./googlepubsub/pubsub-instrumentation";
+import type { DataloaderInstrumentationConfig } from "@opentelemetry/instrumentation-dataloader";
 import type { ExpressInstrumentationConfig } from "@opentelemetry/instrumentation-express";
+import type { FsInstrumentationConfig } from "@opentelemetry/instrumentation-fs";
+import type { KnexInstrumentationConfig } from "@opentelemetry/instrumentation-knex";
+import type { MongooseInstrumentationConfig } from "@opentelemetry/instrumentation-mongoose";
+import type { PgInstrumentationConfig } from "@opentelemetry/instrumentation-pg";
+import type { RedisInstrumentationConfig } from "@opentelemetry/instrumentation-redis";
 
 import { getAllHeadersInstrumentationConfig, getHttpHeadersFromRemoteConfig, getSpecificHttpHeadersInstrumentationConfig, isCollectingAllHttpHeaders } from "./header-collection";
 
@@ -51,6 +57,9 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
     ["@opentelemetry/instrumentation-dataloader", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-dataloader",
         import: "DataloaderInstrumentation",
+        config: {
+            requireParentSpan: false,
+        } as DataloaderInstrumentationConfig,
     }],
     ["@opentelemetry/instrumentation-dns", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-dns",
@@ -72,6 +81,9 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
         instrumentationNpmPackage: "@opentelemetry/instrumentation-fs",
         import: "FsInstrumentation",
         disabledByDefault: true,
+        config: {
+            requireParentSpan: false,
+        } as FsInstrumentationConfig,
     }],
     ["@opentelemetry/instrumentation-generic-pool", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-generic-pool",
@@ -121,6 +133,9 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
     ["@opentelemetry/instrumentation-knex", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-knex",
         import: "KnexInstrumentation",
+        config: {
+            requireParentSpan: false,
+        } as KnexInstrumentationConfig,
     }],
     ["@opentelemetry/instrumentation-koa", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-koa",
@@ -141,6 +156,9 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
     ["@opentelemetry/instrumentation-mongoose", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-mongoose",
         import: "MongooseInstrumentation",
+        config: {
+            requireParentSpan: false,
+        } as MongooseInstrumentationConfig,
     }],
     ["@opentelemetry/instrumentation-mysql2", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-mysql2",
@@ -162,6 +180,9 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
     ["@opentelemetry/instrumentation-pg", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-pg",
         import: "PgInstrumentation",
+        config: {
+            requireParentSpan: false,
+        } as PgInstrumentationConfig,
     }],
     ["@opentelemetry/instrumentation-pino", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-pino",
@@ -170,6 +191,9 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
     ["@opentelemetry/instrumentation-redis", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-redis",
         import: "RedisInstrumentation",
+        config: {
+            requireParentSpan: false,
+        } as RedisInstrumentationConfig,
     }],
     ["@opentelemetry/instrumentation-restify", {
         instrumentationNpmPackage: "@opentelemetry/instrumentation-restify",
