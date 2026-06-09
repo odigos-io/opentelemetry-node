@@ -30,14 +30,13 @@ import { context, propagation } from "@opentelemetry/api";
 import { VERSION } from "./version";
 import {
   BatchSpanProcessor,
-  NodeTracerProvider,
   SpanProcessor,
   ParentBasedSampler,
   Sampler,
 } from "@opentelemetry/sdk-trace-node";
+import { OdigosNodeTracerProvider } from "./OdigosNodeTracerProvider";
 import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
 import { idGeneratorFromConfig } from "./id-generator";
-import { OdigosHeadSampler } from "./sampler";
 import { InstrumentationLibraryConfigFunction } from "./instrumentations/config";
 import { createAndRegisterOtelDiag } from "./diag";
 
@@ -153,21 +152,13 @@ export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions)
           const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
           const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
 
-          var sampler: Sampler | undefined = undefined;
           const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
-          if (headSamplingConfig) {
-            sampler = new ParentBasedSampler({
-              root: new OdigosHeadSampler(headSamplingConfig, componentLogger),
-            });
-          }
 
-          const nodeTracerProvider = new NodeTracerProvider({
-            sampler,
+          tracerProvider = new OdigosNodeTracerProvider({
             resource,
             idGenerator,
             spanProcessors: [spanProcessorExporting],
-          });
-          tracerProvider = nodeTracerProvider;
+          }, headSamplingConfig, logger);
         }
 
         instrumentationLibraries.updateConfig(remoteConfig, tracerProvider);

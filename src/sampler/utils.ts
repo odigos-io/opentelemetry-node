@@ -1,6 +1,6 @@
 import { Attributes } from "@opentelemetry/api";
 import { ATTR_HTTP_ROUTE, ATTR_HTTP_REQUEST_METHOD, ATTR_SERVER_ADDRESS, ATTR_URL_PATH } from "@opentelemetry/semantic-conventions";
-import { SEMATTRS_HTTP_METHOD, SEMATTRS_HTTP_TARGET, SEMATTRS_HTTP_ROUTE, SEMATTRS_NET_PEER_NAME } from "@opentelemetry/semantic-conventions";
+import { SEMATTRS_HTTP_METHOD, SEMATTRS_HTTP_TARGET, SEMATTRS_HTTP_ROUTE, SEMATTRS_NET_PEER_NAME, SEMATTRS_RPC_SYSTEM } from "@opentelemetry/semantic-conventions";
 
 const ATTR_URL_TEMPLATE = "url.template";
 
@@ -110,5 +110,35 @@ export const parseHttpClientAttributes = (attributes: Attributes): ParsedHttpCli
         templatedPath: getHttpTemplatedPathFromAttributes(attributes),
         serverAddress: getServerAddressFromAttributes(attributes),
     };
+}
+
+export interface ParsedGrpcAttributes {
+    method?: string;
+    service?: string;
+}
+
+export const parseGrpcAttributes = (attributes: Attributes, spanName: string, scopeName: string): ParsedGrpcAttributes | undefined => {
+
+    // due to a bug in the grpc instrumentation, the attributes are set after the span start,
+    // which means they are not available in the head sampling.
+    // until fixed upstream, we bypass by extracting the info from the span name.
+
+    if (scopeName !== "@opentelemetry/instrumentation-grpc") {
+        return undefined;
+    }
+
+    const spanNameParts = spanName.split('/');
+    if (spanNameParts.length !== 2) {
+        return undefined;
+    }
+
+    // grpc instrumentation adds a prefix of "grpc." to the span name before the service name.
+    if (!spanNameParts[0].startsWith("grpc.")) {
+        return undefined;
+    }
+
+    const service = spanNameParts[0].slice(5); // remove the "grpc." prefix
+    const method = spanNameParts[1];
+    return { method, service };
 }
 

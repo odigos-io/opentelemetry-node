@@ -1,4 +1,4 @@
-import { HttpMethodMatcher, HttpPathMatcher, HttpServerAddressMatcher } from "./types";
+import { ExactStringMatcher, HttpMethodMatcher, HttpPathMatcher, HttpServerAddressMatcher } from "./types";
 
 // will return if a path segment should be compared using a wildcard match.
 // - '*' means any path segment will match.
@@ -193,4 +193,36 @@ export const createHttpServerAddressMatcher = (serverAddress: string | undefined
     } else {
         return new HttpServerAddressMatcherAlwaysTrue();
     }
+}
+
+class StringMatcherExact implements ExactStringMatcher {
+
+    constructor(private exact: string) {}
+
+    match(value: string | undefined): boolean {
+        if (value === undefined) {
+            return false;
+        }
+        return value === this.exact;
+    }
+}
+
+class ExactStringMatcherAlwaysTrue implements ExactStringMatcher {
+    match(_value: string | undefined): boolean {
+        return true;
+    }
+}
+
+export const createGrpcMethodMatcher = (method: string | undefined): ExactStringMatcher => {
+    if (method) {
+        return new StringMatcherExact(method);
+    }
+    return new ExactStringMatcherAlwaysTrue();
+}
+
+export const createGrpcServiceMatcher = (service: string | undefined): ExactStringMatcher => {
+    if (service) {
+        return new StringMatcherExact(service);
+    }
+    return new ExactStringMatcherAlwaysTrue();
 }
