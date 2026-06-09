@@ -26,6 +26,8 @@ export interface HeadersCollectionConfig {
 export interface HeadSamplingOperationMatcher {
     httpServer?: HttpSamplingOperationMatcherServer;
     httpClient?: HttpSamplingOperationMatcherClient;
+    grpcServer?: GrpcSamplingOperationMatcherServer;
+    grpcClient?: GrpcSamplingOperationMatcherClient;
 }
 
 export interface HttpSamplingOperationMatcherServer {
@@ -39,6 +41,17 @@ export interface HttpSamplingOperationMatcherClient {
     templatedPath?: string;
     templatedPathPrefix?: string;
     method?: string;
+}
+
+export interface GrpcSamplingOperationMatcherServer {
+    method?: string;
+    service?: string;
+}
+
+export interface GrpcSamplingOperationMatcherClient {
+    method?: string;
+    service?: string;
+    serverAddress?: string;
 }
 
 export interface NoisyOperationSamplingConfig {

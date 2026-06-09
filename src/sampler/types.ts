@@ -16,6 +16,10 @@ export interface HttpServerAddressMatcher {
     match(serverAddress: string | undefined): boolean;
 }
 
+export interface ExactStringMatcher {
+    match(value: string | undefined): boolean;
+}
+
 
 // a raw rule contains just a path text. it is parsed to make matching streamlined and efficient.
 // this struct is created per rule to make that happen
@@ -24,4 +28,25 @@ export type ParsedHttpRule = {
     methodMatcher: HttpMethodMatcher;
     serverAddressMatcher?: HttpServerAddressMatcher;
     rule: NoisyOperationSamplingConfig;
+}
+
+export type ParsedGrpcRule = {
+    methodMatcher: ExactStringMatcher;
+    serviceMatcher: ExactStringMatcher;
+    serverAddressMatcher?: HttpServerAddressMatcher;
+    rule: NoisyOperationSamplingConfig;
+}
+
+export enum HeadSamplingOperationKind {
+    Http = 'http',
+    Grpc = 'grpc',
+}
+
+export type ParsedHeadSamplingConfig = {
+    serviceRules: NoisyOperationSamplingConfig[];
+    httpServerRules: ParsedHttpRule[];
+    httpClientRules: ParsedHttpRule[];
+    grpcServerRules: ParsedGrpcRule[];
+    grpcClientRules: ParsedGrpcRule[];
+    dryRun: boolean;
 }
