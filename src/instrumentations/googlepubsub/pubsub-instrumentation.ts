@@ -54,7 +54,6 @@ export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumenta
             const TopicProto = (moduleExports as any).Topic?.prototype;
             if (TopicProto) {
               (self as any)._wrap(TopicProto, "publishMessage", self._createPublishMessageWrap());
-              (self as any)._wrap(TopicProto, "publish", self._createPublishLegacyWrap());
             }
             const PublisherProto = (moduleExports as any).Publisher?.prototype;
             if (PublisherProto) {
@@ -166,76 +165,19 @@ export class PubSubInstrumentation extends InstrumentationBase<PubSubInstrumenta
           // fail-open
         }
 
-        const exec = () => original.apply(this, [msgObj, ...rest]);
-        return safeExecuteInTheMiddle(
-          exec,
-          (err, result) => {
-            if (span) {
-              try {
-                if (err) span.recordException(err as any);
-                span.end();
-              } catch { }
-            }
-          },
-          true
-        );
-      } as any;
-    };
-  }
-
-  private _createPublishLegacyWrap() {
-    const self = this;
-    return function (original: (...args: any[]) => any): any {
-      return function wrapped(this: any, data: any, attributes?: Record<string, string>, ...rest: any[]) {
-        const tracer = (self as any).tracer;
-        const topicFullName: string | undefined = safeGetTopicName(this);
-        const topicDisplay = normalizeDisplayName(topicFullName);
-
-        const env = (globalThis as any).process?.env || {};
-        const enableSpans = env.OTEL_PUBSUB_SPANS !== "0";
-        const enableProp = env.OTEL_PUBSUB_PROPAGATION !== "0";
-
-        let span: Span | undefined;
-        const activeCtx = context.active();
-        const spanName = topicDisplay ? `PubSub publish ${topicDisplay}` : "PubSub publish";
-        if (enableSpans) {
-          span = tracer.startSpan(
-            spanName,
-            {
-              kind: SpanKind.PRODUCER,
-              attributes: buildCommonMessagingAttrs(topicFullName, "publish", data),
+        return context.with(ctxForInject, () =>
+          safeExecuteInTheMiddle(
+            () => original.apply(this, [msgObj, ...rest]),
+            (err, result) => {
+              if (span) {
+                try {
+                  if (err) span.recordException(err as any);
+                  span.end();
+                } catch { }
+              }
             },
-            activeCtx
-          );
-
-          const config = self.getConfig();
-          try {
-            config?.onPublishMessageHook?.(span, { data });
-          } catch (e) {
-            this.diag.error('Error calling onProcessMessageHook', e);
-          }
-        }
-
-        const ctxForInject = span ? trace.setSpan(activeCtx, span) : activeCtx;
-        let attrs = attributes;
-        try {
-          if (enableProp) {
-            attrs = injectIfMissing(ensureAttributes(attributes), ctxForInject);
-          }
-        } catch { }
-
-        const exec = () => original.apply(this, [data, attrs, ...rest]);
-        return safeExecuteInTheMiddle(
-          exec,
-          (err: unknown) => {
-            if (span) {
-              try {
-                if (err) span.recordException(err as any);
-                span.end();
-              } catch { }
-            }
-          },
-          true
+            true
+          )
         );
       } as any;
     };
