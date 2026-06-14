@@ -18,11 +18,11 @@ import {
   ATTR_TELEMETRY_DISTRO_NAME,
 } from "@opentelemetry/semantic-conventions/incubating";
 import {
-  envDetector,
   hostDetector,
   resourceFromAttributes,
   detectResources,
 } from "@opentelemetry/resources";
+import { odigosEnvDetector } from "./OdigosEnvDetector";
 import {
   AsyncLocalStorageContextManager,
 } from "@opentelemetry/context-async-hooks";
@@ -31,8 +31,6 @@ import { VERSION } from "./version";
 import {
   BatchSpanProcessor,
   SpanProcessor,
-  ParentBasedSampler,
-  Sampler,
 } from "@opentelemetry/sdk-trace-node";
 import { OdigosNodeTracerProvider } from "./OdigosNodeTracerProvider";
 import { OdigosProcessDetector, PROCESS_VPID } from "./OdigosProcessDetector";
@@ -100,7 +98,7 @@ export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions)
     detectors: [
       // env detector reads resource attributes from the environment.
       // we don't populate it at the moment, but if the user set anything, this detector will pick it up
-      envDetector,
+      odigosEnvDetector,
       // info about executable, runtime, command, etc
       new OdigosProcessDetector(),
       // host name, and arch
