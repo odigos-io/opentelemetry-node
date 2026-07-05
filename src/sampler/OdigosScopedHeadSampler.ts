@@ -5,6 +5,7 @@ import { parseHttpServerAttributes, parseHttpClientAttributes, parseGrpcAttribut
 import { samplingDecisionByPercentage } from "./percentage";
 import { HeadSamplingOperationKind, ParsedGrpcRule, ParsedHeadSamplingConfig, ParsedHttpRule } from "./types";
 import { createGrpcMethodMatcher, createGrpcServiceMatcher, createHttpMethodMatcher, createHttpPathMatcher, createHttpServerAddressMatcher as createServerAddressMatcher } from "./path-matching";
+import { createHttpQueryParamsMatcher } from "./query-params-matching";
 
 const spanKindToString = (spanKind: SpanKind): string => {
     return SpanKind[spanKind] ?? String(spanKind);
@@ -29,12 +30,14 @@ export function parseHeadSamplingConfig(config: HeadSamplingConfig, logger: Diag
             } else if (rule.operation.httpServer) {
                 const pathMatcher = createHttpPathMatcher(rule.operation.httpServer.route, rule.operation.httpServer.routePrefix);
                 const methodMatcher = createHttpMethodMatcher(rule.operation.httpServer.method);
-                httpServerRules.push({ pathMatcher, methodMatcher, rule });
+                const queryParamsMatcher = createHttpQueryParamsMatcher(rule.operation.httpServer.queryParams);
+                httpServerRules.push({ pathMatcher, methodMatcher, queryParamsMatcher, rule });
             } else if (rule.operation.httpClient) {
                 const pathMatcher = createHttpPathMatcher(rule.operation.httpClient.templatedPath, rule.operation.httpClient.templatedPathPrefix);
                 const methodMatcher = createHttpMethodMatcher(rule.operation.httpClient.method);
                 const serverAddressMatcher = createServerAddressMatcher(rule.operation.httpClient.serverAddress);
-                httpClientRules.push({ pathMatcher, methodMatcher, serverAddressMatcher, rule });
+                const queryParamsMatcher = createHttpQueryParamsMatcher(undefined);
+                httpClientRules.push({ pathMatcher, methodMatcher, queryParamsMatcher, serverAddressMatcher, rule });
             } else if (rule.operation.grpcServer) {
                 const methodMatcher = createGrpcMethodMatcher(rule.operation.grpcServer.method);
                 const serviceMatcher = createGrpcServiceMatcher(rule.operation.grpcServer.service);
@@ -178,6 +181,7 @@ export class OdigosScopedHeadSampler implements Sampler {
         return this.config.httpServerRules
             .filter(parsedRule => parsedRule.methodMatcher.match(upperCaseMethod))
             .filter(parsedRule => parsedRule.pathMatcher.match(routeOrPath, segments))
+            .filter(parsedRule => parsedRule.queryParamsMatcher.match(parsed.queryParams))
             .map(parsedRule => parsedRule.rule);
     }
 
