@@ -32,13 +32,14 @@ on:
 
 env:
   DOCKER_REPOSITORY_NAME: nodejs-community
+  DEPOT_REPOSITORY_NAME: 'agents/nodejs-community'
   ECR_REGISTRY: public.ecr.aws/odigos/agents
   DEPOT_REGISTRY: p0xd21zf5r.registry.depot.dev
 
 jobs:
   # ── 1. Calculate the next version ─────────────────────────────────────────
   calculate:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     permissions:
       contents: read
     outputs:
@@ -48,7 +49,7 @@ jobs:
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
     steps:
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base_branch }}
           fetch-depth: 0
@@ -91,7 +92,7 @@ jobs:
     needs: calculate
     steps:
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base_branch }}
 
@@ -124,7 +125,7 @@ jobs:
   # ── 3. Human approval (after calculate + build both pass) ────────────────
   confirm:
     needs: [calculate, build]
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     environment: release-gate
     steps:
       - name: Release approved
@@ -141,12 +142,12 @@ jobs:
   # ── 4. Create tags + GitHub release (only if builds passed) ──────────────
   tag:
     needs: [calculate, confirm]
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base_branch }}
           fetch-depth: 0
@@ -183,7 +184,7 @@ jobs:
           failure-description: "ERROR: Failed to start publishing OpenTelemetry Node.js Community Agent"
           tag: ${{ needs.calculate.outputs.new_version }}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.calculate.outputs.new_version }}
 
@@ -207,7 +208,7 @@ jobs:
           | docker login --username AWS --password-stdin public.ecr.aws
 
       - name: Login to Depot Registry
-        run: docker login --username x-token --password ${{ secrets.DEPOT_PUSH_TOKEN }} ${DEPOT_REGISTRY}
+        run: echo "${{ secrets.DEPOT_DEV_AGENT_PUBLISH_TOKEN }}" | docker login ${DEPOT_REGISTRY} -u x-token --password-stdin
 
       - name: Compute Docker tags
         id: docker-tags
@@ -215,9 +216,9 @@ jobs:
           NEW_VERSION: ${{ needs.calculate.outputs.new_version }}
           IS_PRERELEASE: ${{ needs.calculate.outputs.is_prerelease }}
         run: |
-          COMMUNITY="${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${DEPOT_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION}"
+          COMMUNITY="${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:${NEW_VERSION}"
           if [[ "${IS_PRERELEASE}" == "false" ]]; then
-            COMMUNITY="${COMMUNITY},${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${DEPOT_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest"
+            COMMUNITY="${COMMUNITY},${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:latest"
           fi
           echo "community=${COMMUNITY}" >> "$GITHUB_OUTPUT"
 
@@ -243,7 +244,7 @@ jobs:
   # ── 6. Trigger Odigos version update + Slack (runs only if publish succeeded; skipped when publish fails/skipped — no extra job if: needed)
   trigger-odigos-update:
     needs: [calculate, publish]
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     permissions:
       id-token: write
       contents: read
