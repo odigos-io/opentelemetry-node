@@ -1,0 +1,121 @@
+name: Publish Legacy 14
+run-name: "Publish Legacy 14 · ${{ github.run_id }}"
+
+# Simple release for the legacy Node.js 14 / OTEL SDK v1 distro (branch
+# nodejs-community-14). Finds the latest v0.0.x tag, bumps the patch, tags
+# git, and pushes the image to ECR + Depot. No approval gate — rarely used.
+#
+# Must live on main so workflow_dispatch is available in the Actions UI.
+# Always builds from the nodejs-community-14 branch.
+
+concurrency:
+  group: publish-legacy-14
+  cancel-in-progress: false
+
+permissions: read-all
+
+on:
+  workflow_dispatch:
+
+env:
+  DOCKER_REPOSITORY_NAME: nodejs-community-14
+  DEPOT_REPOSITORY_NAME: agents/nodejs-community-14
+  ECR_REGISTRY: public.ecr.aws/odigos/agents
+  DEPOT_REGISTRY: p0xd21zf5r.registry.depot.dev
+
+jobs:
+  release:
+    runs-on: depot-ubuntu-24.04-4
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: nodejs-community-14
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Calculate next v0.0.x version
+        id: version
+        run: |
+          latest=$(git tag -l 'v0.0.*' | sort -V | tail -1)
+          if [[ -z "${latest}" ]]; then
+            new_version="v0.0.1"
+          else
+            patch="${latest##*.}"
+            new_version="v0.0.$((patch + 1))"
+          fi
+          echo "latest=${latest:-none}" >> "$GITHUB_OUTPUT"
+          echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
+          echo "Bumping ${latest:-none} → ${new_version}"
+
+      - name: Notify Slack (start)
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with:
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Starting release of OpenTelemetry Node.js Community 14 Agent ${{ steps.version.outputs.new_version }}"
+          failure-description: "ERROR: Failed to start release of OpenTelemetry Node.js Community 14 Agent"
+          tag: ${{ steps.version.outputs.new_version }}
+
+      - name: Get STS token
+        id: sts
+        uses: odigos-io/ci-core/sts@main
+        with:
+          identity: tag-releaser
+
+      - name: Create and push git tag
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          git config user.name "ci-core[bot]"
+          git config user.email "ci-core-bot@odigos.io"
+          git tag "${NEW_VERSION}"
+          git push origin "refs/tags/${NEW_VERSION}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-ecr-upload
+          aws-region: us-east-1
+
+      - name: Log in to Amazon ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 \
+          | docker login --username AWS --password-stdin public.ecr.aws
+
+      - name: Login to Depot Registry
+        run: echo "${{ secrets.DEPOT_DEV_AGENT_PUBLISH_TOKEN }}" | docker login ${DEPOT_REGISTRY} -u x-token --password-stdin
+
+      - name: Compute Docker tags
+        id: docker-tags
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          echo "tags=${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:${NEW_VERSION},${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: Dockerfile
+          push: true
+          build-args: AGENT_VERSION=${{ steps.version.outputs.new_version }}
+          tags: ${{ steps.docker-tags.outputs.tags }}
+
+      - name: Notify Slack
+        if: always()
+        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+        with:
+          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
+          success-description: "Published a new release of OpenTelemetry Node.js Community 14 Agent"
+          failure-description: "ERROR: Failed to publish a new release of OpenTelemetry Node.js Community 14 Agent"
+          tag: ${{ steps.version.outputs.new_version }}

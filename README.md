@@ -28,3 +28,18 @@ Use a mount from the local development kind cluster to the local fs. then every 
 - install odigos into this cluster (with helm, cli, local chart, or any method you prefer)
 - build the agent to the local directory: `yarn build-to-varodigos`
 - restart the node pods in the odigos k8s cluster.
+
+# Publishing the Legacy Node.js 14 Agent
+
+The `nodejs-community-14` branch is a frozen OTEL SDK v1 distro for Node.js >= 14.
+It is rarely updated and will be deprecated.
+
+To publish a new patch:
+
+1. Run the **Publish Legacy 14** workflow (`workflow_dispatch` on `main`).
+   It bumps the latest `v0.0.x` tag on `nodejs-community-14` and pushes:
+   - `public.ecr.aws/odigos/agents/nodejs-community-14:<version>` (+ `:latest`)
+   - `p0xd21zf5r.registry.depot.dev/agents/nodejs-community-14:<version>` (+ `:latest`)
+2. Manually update the `nodejs-community-14` image pins in
+   `odigos/odiglet/Dockerfile` (and `debug.Dockerfile` if needed). There is no
+   automation for this distro — consumer PRs are not opened automatically.
