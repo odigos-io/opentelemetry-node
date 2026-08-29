@@ -32,10 +32,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    defaults:
-      run:
-        # Fail on any command error, unset vars, or pipe failure.
-        shell: bash --noprofile --norc -euo pipefail {0}
     steps:
       - name: Get STS token
         id: sts
@@ -63,14 +59,6 @@ jobs:
             new_version="v0.0.$((patch + 1))"
           fi
           git_tag="${GIT_TAG_PREFIX}${new_version}"
-          if [[ -z "${new_version}" || -z "${git_tag}" ]]; then
-            echo "::error::Failed to compute next version (new_version='${new_version}' git_tag='${git_tag}')"
-            exit 1
-          fi
-          if git rev-parse "${git_tag}" >/dev/null 2>&1; then
-            echo "::error::Tag ${git_tag} already exists"
-            exit 1
-          fi
           echo "latest=${latest:-none}" >> "$GITHUB_OUTPUT"
           echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
           echo "git_tag=${git_tag}" >> "$GITHUB_OUTPUT"
@@ -88,15 +76,8 @@ jobs:
         env:
           GIT_TAG: ${{ steps.version.outputs.git_tag }}
         run: |
-          : "${GIT_TAG:?GIT_TAG is empty}"
-          if git rev-parse "${GIT_TAG}" >/dev/null 2>&1; then
-            echo "::error::Tag ${GIT_TAG} already exists"
-            exit 1
-          fi
           git tag "${GIT_TAG}"
           git push origin "refs/tags/${GIT_TAG}"
-          # Confirm the remote has the tag we just pushed.
-          git ls-remote --exit-code --tags origin "refs/tags/${GIT_TAG}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -116,18 +97,13 @@ jobs:
           | docker login --username AWS --password-stdin public.ecr.aws
 
       - name: Login to Depot Registry
-        run: |
-          : "${DEPOT_DEV_AGENT_PUBLISH_TOKEN:?DEPOT_DEV_AGENT_PUBLISH_TOKEN secret is empty}"
-          echo "${DEPOT_DEV_AGENT_PUBLISH_TOKEN}" | docker login "${DEPOT_REGISTRY}" -u x-token --password-stdin
-        env:
-          DEPOT_DEV_AGENT_PUBLISH_TOKEN: ${{ secrets.DEPOT_DEV_AGENT_PUBLISH_TOKEN }}
+        run: echo "${{ secrets.DEPOT_DEV_AGENT_PUBLISH_TOKEN }}" | docker login ${DEPOT_REGISTRY} -u x-token --password-stdin
 
       - name: Compute Docker tags
         id: docker-tags
         env:
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
         run: |
-          : "${NEW_VERSION:?NEW_VERSION is empty}"
           echo "tags=${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:${NEW_VERSION},${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:latest" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
