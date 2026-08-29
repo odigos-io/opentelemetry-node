@@ -241,7 +241,7 @@ jobs:
           failure-description: "ERROR: Failed to publish OpenTelemetry Node.js Community Agent"
           tag: ${{ needs.calculate.outputs.new_version }}
 
-  # ── 6. Trigger Odigos version update + Slack (runs only if publish succeeded; skipped when publish fails/skipped — no extra job if: needed)
+  # ── 6. Trigger consumer version updates (runs only if publish succeeded)
   trigger-odigos-update:
     needs: [calculate, publish]
     runs-on: depot-ubuntu-latest
@@ -249,9 +249,36 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Trigger agents version update in consumer repos
+      - name: Trigger agents version update in odigos
         uses: odigos-io/ci-core/dispatch-agent-version-update@main
         with:
           instrumentation_agent: nodejs-community
           version: ${{ needs.calculate.outputs.new_version }}
           consumers: odigos
+
+      - name: Build ebpf-nodejs-instrumentation payload
+        id: payload-ebpf-nodejs
+        env:
+          AGENT_VERSION: ${{ needs.calculate.outputs.new_version }}
+        run: |
+          # Payload shape expected by ebpf-nodejs-instrumentation's
+          # update-nodejs-community-version repository_dispatch handler.
+          json="$(jq -nc --arg version "$AGENT_VERSION" \
+            '{nodejs_community_version: $version}')"
+          echo "json=$json" >> "$GITHUB_OUTPUT"
+
+      - name: Get sts token for ebpf-nodejs-instrumentation
+        id: sts-ebpf-nodejs
+        uses: odigos-io/ci-core/sts@main
+        with:
+          scope: odigos-io/ebpf-nodejs-instrumentation
+          identity: trigger-nodejs-community-version-updater
+          output-git-config: "false"
+
+      - name: Trigger update in ebpf-nodejs-instrumentation
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ steps.sts-ebpf-nodejs.outputs.GH_TOKEN }}
+          repository: odigos-io/ebpf-nodejs-instrumentation
+          event-type: update-nodejs-community-version
+          client-payload: ${{ steps.payload-ebpf-nodejs.outputs.json }}

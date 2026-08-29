@@ -5,6 +5,7 @@ COPY package.json yarn.lock .
 RUN yarn install --frozen-lockfile
 COPY . .
 RUN echo "export const VERSION = \"$AGENT_VERSION\";" > ./src/version.ts
+RUN echo "exports.VERSION = \"$AGENT_VERSION\";" > ./src/nodejs-community/version.js
 RUN yarn compile
 
 # this build step is only for the production node_modules.
@@ -23,4 +24,4 @@ COPY --from=nodejs-community-build /opentelemetry-node/package.json ./openteleme
 COPY --from=nodejs-community-build /opentelemetry-node/LICENSE ./opentelemetry-node/LICENSE
 COPY --from=nodejs-community-build /opentelemetry-node/build ./opentelemetry-node/build
 COPY --from=nodejs-prod-modules /opentelemetry-node-prod/node_modules ./opentelemetry-node/node_modules
-COPY --from=nodejs-community-build /opentelemetry-node/build/src/nodejs-community/autoinstrumentation.js ./nodejs-community/autoinstrumentation.js
+COPY --from=nodejs-community-build /opentelemetry-node/src/nodejs-community/ ./nodejs-community/

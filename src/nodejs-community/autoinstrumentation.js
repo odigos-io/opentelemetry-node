@@ -12,6 +12,7 @@ try {
         var createNativeCommunitySpanProcessor = opentelemetryNode.createNativeCommunitySpanProcessor;
         var startOpenTelemetryAgent = opentelemetryNode.startOpenTelemetryAgent;
         var createOdigosDiag = opentelemetryNode.createOdigosDiag;
+        var VERSION = require('./version').VERSION;
         var logger = createOdigosDiag();
         logger.info("Loading Odigos OpenTelemetry auto-instrumentation agent");
 
@@ -22,6 +23,7 @@ try {
         var spanProcessor = createNativeCommunitySpanProcessor();
         startOpenTelemetryAgent({
             distroName: 'nodejs-community',
+            distroVersion: VERSION,
             opampServerHost: opampServerHost,
             spanProcessorExporting: spanProcessor,
             logger: logger,
