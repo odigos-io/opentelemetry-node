@@ -37,9 +37,10 @@ It is rarely updated and will be deprecated.
 To publish a new patch:
 
 1. Run the **Publish Legacy 14** workflow (`workflow_dispatch` on `main`).
-   It bumps the latest `v0.0.x` tag on `nodejs-community-14` and pushes:
-   - `public.ecr.aws/odigos/agents/nodejs-community-14:<version>` (+ `:latest`)
-   - `p0xd21zf5r.registry.depot.dev/agents/nodejs-community-14:<version>` (+ `:latest`)
+   It bumps the latest `nodejs-community-14/v0.0.x` git tag and pushes:
+   - git tag `nodejs-community-14/v0.0.x`
+   - `public.ecr.aws/odigos/agents/nodejs-community-14:v0.0.x` (+ `:latest`)
+   - `p0xd21zf5r.registry.depot.dev/agents/nodejs-community-14:v0.0.x` (+ `:latest`)
 2. Manually update the `nodejs-community-14` image pins in
    `odigos/odiglet/Dockerfile` (and `debug.Dockerfile` if needed). There is no
    automation for this distro — consumer PRs are not opened automatically.

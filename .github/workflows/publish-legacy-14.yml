@@ -2,8 +2,9 @@ name: Publish Legacy 14
 run-name: "Publish Legacy 14 · ${{ github.run_id }}"
 
 # Simple release for the legacy Node.js 14 / OTEL SDK v1 distro (branch
-# nodejs-community-14). Finds the latest v0.0.x tag, bumps the patch, tags
-# git, and pushes the image to ECR + Depot. No approval gate — rarely used.
+# nodejs-community-14). Finds the latest nodejs-community-14/v0.0.x git tag,
+# bumps the patch, tags git with that prefix, and pushes the image to ECR +
+# Depot as bare v0.0.x. No approval gate — rarely used.
 #
 # Must live on main so workflow_dispatch is available in the Actions UI.
 # Always builds from the nodejs-community-14 branch.
@@ -22,6 +23,8 @@ env:
   DEPOT_REPOSITORY_NAME: agents/nodejs-community-14
   ECR_REGISTRY: public.ecr.aws/odigos/agents
   DEPOT_REGISTRY: p0xd21zf5r.registry.depot.dev
+  # Git tags for this distro are namespaced so they do not collide with mainline v0.0.x.
+  GIT_TAG_PREFIX: nodejs-community-14/
 
 jobs:
   release:
@@ -30,26 +33,36 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - name: Get STS token
+        id: sts
+        uses: odigos-io/ci-core/sts@main
+        with:
+          identity: tag-releaser
+          output-git-config: "true"
+
       - uses: actions/checkout@v7
         with:
           ref: nodejs-community-14
           fetch-depth: 0
           fetch-tags: true
-          persist-credentials: false
+          token: ${{ steps.sts.outputs.GH_TOKEN }}
 
       - name: Calculate next v0.0.x version
         id: version
         run: |
-          latest=$(git tag -l 'v0.0.*' | sort -V | tail -1)
+          latest=$(git tag -l "${GIT_TAG_PREFIX}v0.0.*" | sort -V | tail -1)
           if [[ -z "${latest}" ]]; then
             new_version="v0.0.1"
           else
-            patch="${latest##*.}"
+            latest_version="${latest#"${GIT_TAG_PREFIX}"}"
+            patch="${latest_version##*.}"
             new_version="v0.0.$((patch + 1))"
           fi
+          git_tag="${GIT_TAG_PREFIX}${new_version}"
           echo "latest=${latest:-none}" >> "$GITHUB_OUTPUT"
           echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
-          echo "Bumping ${latest:-none} → ${new_version}"
+          echo "git_tag=${git_tag}" >> "$GITHUB_OUTPUT"
+          echo "Bumping ${latest:-none} → ${git_tag} (docker: ${new_version})"
 
       - name: Notify Slack (start)
         uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
@@ -57,22 +70,14 @@ jobs:
           webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
           success-description: "Starting release of OpenTelemetry Node.js Community 14 Agent ${{ steps.version.outputs.new_version }}"
           failure-description: "ERROR: Failed to start release of OpenTelemetry Node.js Community 14 Agent"
-          tag: ${{ steps.version.outputs.new_version }}
-
-      - name: Get STS token
-        id: sts
-        uses: odigos-io/ci-core/sts@main
-        with:
-          identity: tag-releaser
+          tag: ${{ steps.version.outputs.git_tag }}
 
       - name: Create and push git tag
         env:
-          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+          GIT_TAG: ${{ steps.version.outputs.git_tag }}
         run: |
-          git config user.name "ci-core[bot]"
-          git config user.email "ci-core-bot@odigos.io"
-          git tag "${NEW_VERSION}"
-          git push origin "refs/tags/${NEW_VERSION}"
+          git tag "${GIT_TAG}"
+          git push origin "refs/tags/${GIT_TAG}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -118,4 +123,4 @@ jobs:
           webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
           success-description: "Published a new release of OpenTelemetry Node.js Community 14 Agent"
           failure-description: "ERROR: Failed to publish a new release of OpenTelemetry Node.js Community 14 Agent"
-          tag: ${{ steps.version.outputs.new_version }}
+          tag: ${{ steps.version.outputs.git_tag }}
