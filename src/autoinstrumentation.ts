@@ -27,7 +27,6 @@ import {
   AsyncLocalStorageContextManager,
 } from "@opentelemetry/context-async-hooks";
 import { context, propagation } from "@opentelemetry/api";
-import { VERSION } from "./version";
 import {
   BatchSpanProcessor,
   SpanProcessor,
@@ -51,6 +50,7 @@ export const createNativeCommunitySpanProcessor = (): SpanProcessor => {
 
 export interface StartOpenTelemetryAgentOptions {
   distroName: string;
+  distroVersion: string;
   opampServerHost: string;
   spanProcessorExporting: SpanProcessor;
   additionalConfigs?: Record<string, InstrumentationLibraryConfigFunction>;
@@ -66,7 +66,7 @@ export interface StartOpenTelemetryAgentOptions {
 // it allows the agent to provide its own span processor, depending on the
 // agent implementation (for example - eBPF span processor for enterprise agent)
 export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions): InstrumentationLibrariesTracerProviderSetter | undefined => {
-  const { distroName, opampServerHost, spanProcessorExporting, additionalConfigs, configUpdateCallback, logger } = options;
+  const { distroName, distroVersion, opampServerHost, spanProcessorExporting, additionalConfigs, configUpdateCallback, logger } = options;
 
   const otelDiag = createAndRegisterOtelDiag();
 
@@ -76,7 +76,7 @@ export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions)
 
   componentLogger.info("Starting Odigos OpenTelemetry auto-instrumentation agent", {
     distroName,
-    distroVersion: VERSION,
+    distroVersion,
     opampServerHost,
   });
 
@@ -89,7 +89,7 @@ export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions)
 
   const staticResource = resourceFromAttributes({
     [ATTR_TELEMETRY_DISTRO_NAME]: distroName,
-    [ATTR_TELEMETRY_DISTRO_VERSION]: VERSION,
+    [ATTR_TELEMETRY_DISTRO_VERSION]: distroVersion,
     [ATTR_SERVICE_INSTANCE_ID]: serviceInstanceId,
     [ATTR_TELEMETRY_SDK_LANGUAGE]: "nodejs",
   });
