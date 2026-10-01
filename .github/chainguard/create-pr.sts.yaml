@@ -1,5 +1,5 @@
 issuer: https://token.actions.githubusercontent.com
-subject_pattern: repo:odigos-io/opentelemetry-node:ref:.*
+subject_pattern: repo:odigos-io(@84347062)?/opentelemetry-node(@809655741)?:ref:.*
 
 permissions:
   contents: write
