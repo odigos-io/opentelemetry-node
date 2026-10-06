@@ -44,6 +44,7 @@ jobs:
       contents: read
     outputs:
       new_version: ${{ steps.calc.outputs.new_version }}
+      current_version: ${{ steps.calc.outputs.current_version }}
       create_branch: ${{ steps.calc.outputs.create_branch }}
       release_branch: ${{ steps.calc.outputs.release_branch }}
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
@@ -161,6 +162,9 @@ jobs:
           base_branch: ${{ inputs.base_branch }}
           sts_identity: tag-releaser
           new_version: ${{ needs.calculate.outputs.new_version }}
+          # Scopes the generated notes; without it GitHub starts from the
+          # repo's first commit.
+          previous_version: ${{ needs.calculate.outputs.current_version }}
           create_branch: ${{ needs.calculate.outputs.create_branch }}
           release_branch: ${{ needs.calculate.outputs.release_branch }}
           actor: ${{ github.actor }}
@@ -282,3 +286,45 @@ jobs:
           repository: odigos-io/ebpf-nodejs-instrumentation
           event-type: update-nodejs-community-version
           client-payload: ${{ steps.payload-ebpf-nodejs.outputs.json }}
+
+  # Records the release in Linear with the issues that shipped in it. Its own job, not a
+  # step on `tag`: that keeps the third-party CLI away from the STS token, and keeps
+  # remote-action resolution — which happens during job setup, before continue-on-error
+  # applies — out of the job that cuts the tag.
+  linear-release:
+    needs: [calculate, tag]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.calculate.outputs.new_version }}
+          fetch-depth: 0 # the scan walks commit history
+          fetch-tags: true
+
+      - name: Fetch the GitHub release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.calculate.outputs.new_version }}
+        run: |
+          set -uo pipefail
+          if ! gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" \
+               --json body --jq .body > release-notes.md; then
+            echo "::warning::could not read the GitHub release notes for ${VERSION}"
+          fi
+          # Whitespace-only is worse than nothing: an empty note still occupies the slot
+          # in Linear and suppresses its own generation.
+          grep -q '[^[:space:]]' release-notes.md 2>/dev/null || rm -f release-notes.md
+
+      - uses: odigos-io/ci-core/linear-release@main
+        with:
+          access-key: ${{ secrets.LINEAR_RELEASE_ACCESS_KEY }}
+          name: ${{ needs.calculate.outputs.new_version }}
+          version: ${{ needs.calculate.outputs.new_version }}
+          release-notes: release-notes.md
+          # Usually a tag on another release branch; the action resolves such a ref
+          # to the fork point rather than failing the scan.
+          base-ref: ${{ needs.calculate.outputs.current_version }}
+          links: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.calculate.outputs.new_version }}
