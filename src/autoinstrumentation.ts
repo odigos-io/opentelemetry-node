@@ -80,13 +80,6 @@ export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions)
     opampServerHost,
   });
 
-  if (!opampServerHost) {
-    componentLogger.error(
-      "Odigos OpenTelemetry agent: Missing required environment variables ODIGOS_OPAMP_SERVER_HOST. Skipping startup.",
-    );
-    return undefined;
-  }
-
   const staticResource = resourceFromAttributes({
     [ATTR_TELEMETRY_DISTRO_NAME]: distroName,
     [ATTR_TELEMETRY_DISTRO_VERSION]: distroVersion,
@@ -125,56 +118,74 @@ export const startOpenTelemetryAgent = (options: StartOpenTelemetryAgentOptions)
   // instrumentation libraries
   const instrumentationLibraries = new InstrumentationLibraries(additionalConfigs);
 
-  const opampClient = new OpAMPClientHttp({
-    serviceInstanceId,
-    opAMPServerHost: opampServerHost,
-    agentDescriptionIdentifyingAttributes,
-    agentDescriptionNonIdentifyingAttributes: {},
-    logger: logger.createComponentLogger({
-      namespace: "@odigos/opentelemetry-node/opamp",
-    }),
-    onNewRemoteConfig: (remoteConfig: RemoteConfig) => {
-      try {
-        componentLogger.info("Applying new remote config", {
-          remoteConfig,
-        });
+  const applyRemoteConfig = (remoteConfig: RemoteConfig) => {
+    componentLogger.info("Applying new remote config", {
+      remoteConfig,
+    });
 
-        configUpdateCallback?.(remoteConfig);
+    configUpdateCallback?.(remoteConfig);
 
-        logger.updateConfig(remoteConfig.containerConfig?.agentDiagnostics?.odigosLogLevel);
-        otelDiag.updateConfig(remoteConfig.containerConfig?.agentDiagnostics?.openTelemetryComponentsLogLevel);
+    logger.updateConfig(remoteConfig.containerConfig?.agentDiagnostics?.odigosLogLevel);
+    otelDiag.updateConfig(remoteConfig.containerConfig?.agentDiagnostics?.openTelemetryComponentsLogLevel);
 
-        // set the tracer provider based on if traces are enabled or not.
-        let tracerProvider: TracerProvider | undefined;
-        if (remoteConfig.containerConfig.traces) {
-          const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
-          const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
+    // set the tracer provider based on if traces are enabled or not.
+    let tracerProvider: TracerProvider | undefined;
+    if (remoteConfig.containerConfig.traces) {
+      const idGeneratorConfig = remoteConfig.containerConfig.traces?.idGenerator;
+      const idGenerator = idGeneratorFromConfig(idGeneratorConfig);
 
-          const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
+      const headSamplingConfig = remoteConfig.containerConfig?.traces?.headSampling;
 
-          tracerProvider = new OdigosNodeTracerProvider({
-            resource,
-            idGenerator,
-            spanProcessors: [spanProcessorExporting],
-          }, headSamplingConfig, logger);
+      tracerProvider = new OdigosNodeTracerProvider({
+        resource,
+        idGenerator,
+        spanProcessors: [spanProcessorExporting],
+      }, headSamplingConfig, logger);
+    }
+
+    instrumentationLibraries.updateConfig(remoteConfig, tracerProvider);
+  };
+
+  let opampClient: OpAMPClientHttp | undefined;
+  if (opampServerHost) {
+    const client = new OpAMPClientHttp({
+      serviceInstanceId,
+      opAMPServerHost: opampServerHost,
+      agentDescriptionIdentifyingAttributes,
+      agentDescriptionNonIdentifyingAttributes: {},
+      logger: logger.createComponentLogger({
+        namespace: "@odigos/opentelemetry-node/opamp",
+      }),
+      onNewRemoteConfig: (remoteConfig: RemoteConfig) => {
+        try {
+          applyRemoteConfig(remoteConfig);
+          client.setSdkHealthy();
+        } catch (err) {
+          componentLogger.error("Error applying new remote config", err);
         }
+      },
+      initialPackageStatues: [], // TODO: fill this up
+    });
 
-        instrumentationLibraries.updateConfig(remoteConfig, tracerProvider);
-        opampClient.setSdkHealthy();
-      } catch (err) {
-        componentLogger.error("Error applying new remote config", err);
-      }
-    },
-    initialPackageStatues: [], // TODO: fill this up
-  });
-
-  opampClient.start();
+    opampClient = client;
+    opampClient.start();
+  } else {
+    componentLogger.warn(
+      "ODIGOS_OPAMP_SERVER_HOST not set, loading agent without remote configuration",
+    );
+    // same defaults used when OpAMP is unreachable: enable traces
+    applyRemoteConfig({
+      containerConfig: {
+        traces: {},
+      },
+    });
+  }
 
   const shutdown = async (shutdownReason: string) => {
     try {
       componentLogger.info("Shutting down OpenTelemetry SDK and OpAMP client");
       await Promise.all([
-        opampClient.shutdown(shutdownReason),
+        opampClient?.shutdown(shutdownReason),
         spanProcessorExporting.shutdown(),
       ]);
     } catch (err) {
