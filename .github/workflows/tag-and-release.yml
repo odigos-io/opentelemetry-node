@@ -35,7 +35,7 @@ env:
   DEPOT_REPOSITORY_NAME: 'agents/nodejs-community'
   ECR_REGISTRY: public.ecr.aws/odigos/agents
   DEPOT_REGISTRY: p0xd21zf5r.registry.depot.dev
-  GCP_REGISTRY: us-central1-docker.pkg.dev/odigos-cloud/components
+  GCP_REGISTRY: us-central1-docker.pkg.dev/odigos-cloud/agents
   GCP_DOCKER_HOST: us-central1-docker.pkg.dev
 
 jobs:
