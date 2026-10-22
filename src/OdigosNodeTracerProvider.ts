@@ -1,4 +1,4 @@
-import type { TracerProvider, Tracer as ApiTracer, DiagLogger } from "@opentelemetry/api";
+import { createNoopMeter, type TracerProvider, type Tracer as ApiTracer, type DiagLogger } from "@opentelemetry/api";
 import {
   merge,
 } from "@opentelemetry/core";
@@ -9,11 +9,12 @@ import {
   type TracerConfig,
   type Sampler,
   ParentBasedSampler,
-  AlwaysOnSampler
+  RandomIdGenerator,
 } from "@opentelemetry/sdk-trace-base";
+import type { TracerOptions } from "@opentelemetry/sdk-trace/build/src/types";
 import { loadDefaultConfig } from "@opentelemetry/sdk-trace-base/build/src/config";
-import { MultiSpanProcessor } from "@opentelemetry/sdk-trace-base/build/src/MultiSpanProcessor";
-import { Tracer } from "@opentelemetry/sdk-trace-base/build/src/Tracer";
+import { MultiSpanProcessor } from "@opentelemetry/sdk-trace/build/src/MultiSpanProcessor";
+import { Tracer } from "@opentelemetry/sdk-trace/build/src/Tracer";
 import { reconfigureLimits } from "@opentelemetry/sdk-trace-base/build/src/utility";
 import { HeadSamplingConfig } from "./config";
 import { getHeadSamplingOperationKindsForScope } from "./instrumentations/config";
@@ -90,14 +91,31 @@ export class OdigosNodeTracerProvider implements TracerProvider {
     const key = `${name}@${version || ""}:${options?.schemaUrl || ""}`;
     if (!this._tracers.has(key)) {
       const sampler = this.getSampler(name);
-      const tracerConfig = { ...this._config, sampler };
+      const limits = this._config.spanLimits;
+      const tracerOptions: TracerOptions = {
+        resource: this._resource,
+        sampler,
+        spanLimits: {
+          attributeCountLimit: limits?.attributeCountLimit ?? 128,
+          attributeValueLengthLimit: limits?.attributeValueLengthLimit ?? Infinity,
+          eventCountLimit: limits?.eventCountLimit ?? 128,
+          linkCountLimit: limits?.linkCountLimit ?? 128,
+          attributePerEventCountLimit: limits?.attributePerEventCountLimit ?? 128,
+          attributePerLinkCountLimit: limits?.attributePerLinkCountLimit ?? 128,
+        },
+        idGenerator: this._config.idGenerator ?? new RandomIdGenerator(),
+        spanProcessor: this._activeSpanProcessor,
+        meterProvider: this._config.meterProvider ?? {
+          getMeter() {
+            return createNoopMeter();
+          },
+        },
+      };
       this._tracers.set(
         key,
         new Tracer(
           { name, version, schemaUrl: options?.schemaUrl },
-          tracerConfig,
-          this._resource,
-          this._activeSpanProcessor
+          tracerOptions,
         )
       );
     }
