@@ -316,7 +316,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.calculate.outputs.new_version }}
           fetch-depth: 0 # the scan walks commit history
