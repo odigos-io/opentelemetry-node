@@ -30,10 +30,16 @@ export interface HeadSamplingOperationMatcher {
     grpcClient?: GrpcSamplingOperationMatcherClient;
 }
 
+export interface HttpQueryParamMatcher {
+    name: string;
+    valueExact?: string;
+}
+
 export interface HttpSamplingOperationMatcherServer {
     route?: string;
     routePrefix?: string;
     method?: string;
+    queryParams?: HttpQueryParamMatcher[];
 }
 
 export interface HttpSamplingOperationMatcherClient {

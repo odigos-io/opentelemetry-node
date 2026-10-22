@@ -1,5 +1,5 @@
 import { Attributes } from "@opentelemetry/api";
-import { ATTR_HTTP_ROUTE, ATTR_HTTP_REQUEST_METHOD, ATTR_SERVER_ADDRESS, ATTR_URL_PATH } from "@opentelemetry/semantic-conventions";
+import { ATTR_HTTP_ROUTE, ATTR_HTTP_REQUEST_METHOD, ATTR_SERVER_ADDRESS, ATTR_URL_PATH, ATTR_URL_QUERY } from "@opentelemetry/semantic-conventions";
 import { SEMATTRS_HTTP_METHOD, SEMATTRS_HTTP_TARGET, SEMATTRS_HTTP_ROUTE, SEMATTRS_NET_PEER_NAME, SEMATTRS_RPC_SYSTEM } from "@opentelemetry/semantic-conventions";
 
 const ATTR_URL_TEMPLATE = "url.template";
@@ -32,19 +32,23 @@ export const getHttpRouteFromAttributes = (attributes: Attributes): string | und
     return undefined;
 }
 
-export const getHttpPathFromAttributes = (attributes: Attributes): string | undefined => {
+export const getHttpPathAndQueryParamsFromAttributes = (attributes: Attributes): { path: string, queryParams?: string } | undefined => {
     const pathNew = attributes[ATTR_URL_PATH];
     if (pathNew) {
-        return pathNew.toString();
+        const path = pathNew.toString();
+        const urlQuery = attributes[ATTR_URL_QUERY];
+        const queryParams = urlQuery?.toString();
+        return { path, queryParams };
     }
 
     const httpTargetLegacy = attributes[SEMATTRS_HTTP_TARGET];
     if (httpTargetLegacy) {
         const httpTarget = httpTargetLegacy.toString();
         if (httpTarget.includes('?')) {
-            return httpTarget.split('?')[0];
+            const [path, queryParams] = httpTarget.split('?');
+            return { path, queryParams };
         } else {
-            return httpTarget;
+            return { path: httpTarget };
         }
     }
 
@@ -78,6 +82,7 @@ export interface ParsedHttpServerAttributes {
     method: string;
     route?: string;
     path?: string;
+    queryParams?: string;
 }
 
 export const parseHttpServerAttributes = (attributes: Attributes): ParsedHttpServerAttributes | undefined => {
@@ -85,10 +90,12 @@ export const parseHttpServerAttributes = (attributes: Attributes): ParsedHttpSer
     if (!method) {
         return undefined;
     }
+    const pathAndQueryParams = getHttpPathAndQueryParamsFromAttributes(attributes);
     return {
         method,
         route: getHttpRouteFromAttributes(attributes),
-        path: getHttpPathFromAttributes(attributes),
+        path: pathAndQueryParams?.path,
+        queryParams: pathAndQueryParams?.queryParams,
     };
 }
 
@@ -97,6 +104,7 @@ export interface ParsedHttpClientAttributes {
     path?: string;
     templatedPath?: string;
     serverAddress?: string;
+    queryParams?: string;
 }
 
 export const parseHttpClientAttributes = (attributes: Attributes): ParsedHttpClientAttributes | undefined => {
@@ -104,9 +112,11 @@ export const parseHttpClientAttributes = (attributes: Attributes): ParsedHttpCli
     if (!method) {
         return undefined;
     }
+    const pathAndQueryParams = getHttpPathAndQueryParamsFromAttributes(attributes);
     return {
         method,
-        path: getHttpPathFromAttributes(attributes),
+        path: pathAndQueryParams?.path,
+        queryParams: pathAndQueryParams?.queryParams,
         templatedPath: getHttpTemplatedPathFromAttributes(attributes),
         serverAddress: getServerAddressFromAttributes(attributes),
     };

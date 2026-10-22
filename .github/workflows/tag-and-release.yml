@@ -32,6 +32,7 @@ on:
 
 env:
   DOCKER_REPOSITORY_NAME: nodejs-community
+  DEPOT_REPOSITORY_NAME: 'agents/nodejs-community'
   ECR_REGISTRY: public.ecr.aws/odigos/agents
   DEPOT_REGISTRY: p0xd21zf5r.registry.depot.dev
   GCP_REGISTRY: northamerica-northeast1-docker.pkg.dev/odigos-cloud/agents
@@ -40,17 +41,18 @@ env:
 jobs:
   # ── 1. Calculate the next version ─────────────────────────────────────────
   calculate:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     permissions:
       contents: read
     outputs:
       new_version: ${{ steps.calc.outputs.new_version }}
+      current_version: ${{ steps.calc.outputs.current_version }}
       create_branch: ${{ steps.calc.outputs.create_branch }}
       release_branch: ${{ steps.calc.outputs.release_branch }}
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
     steps:
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base_branch }}
           fetch-depth: 0
@@ -93,7 +95,7 @@ jobs:
     needs: calculate
     steps:
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base_branch }}
 
@@ -126,7 +128,7 @@ jobs:
   # ── 3. Human approval (after calculate + build both pass) ────────────────
   confirm:
     needs: [calculate, build]
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     environment: release-gate
     steps:
       - name: Release approved
@@ -143,12 +145,12 @@ jobs:
   # ── 4. Create tags + GitHub release (only if builds passed) ──────────────
   tag:
     needs: [calculate, confirm]
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.base_branch }}
           fetch-depth: 0
@@ -162,6 +164,9 @@ jobs:
           base_branch: ${{ inputs.base_branch }}
           sts_identity: tag-releaser
           new_version: ${{ needs.calculate.outputs.new_version }}
+          # Scopes the generated notes; without it GitHub starts from the
+          # repo's first commit.
+          previous_version: ${{ needs.calculate.outputs.current_version }}
           create_branch: ${{ needs.calculate.outputs.create_branch }}
           release_branch: ${{ needs.calculate.outputs.release_branch }}
           actor: ${{ github.actor }}
@@ -185,7 +190,7 @@ jobs:
           failure-description: "ERROR: Failed to start publishing OpenTelemetry Node.js Community Agent"
           tag: ${{ needs.calculate.outputs.new_version }}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.calculate.outputs.new_version }}
 
@@ -197,17 +202,19 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
-      - name: Authenticate to Google Cloud
+      - id: gcp-auth
+        name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
           token_format: 'access_token'
-          workload_identity_provider: projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-actions/providers/github
-          service_account: agent-images-publisher@odigos-cloud.iam.gserviceaccount.com
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          access_token_lifetime: 1200s
 
       - name: Login to Artifact Registry
         uses: docker/login-action@v4
         with:
-          registry: northamerica-northeast1-docker.pkg.dev
+          registry: ${{ env.GCP_DOCKER_HOST }}
           username: oauth2accesstoken
           password: ${{ steps.gcp-auth.outputs.access_token }}
 
@@ -223,7 +230,7 @@ jobs:
           | docker login --username AWS --password-stdin public.ecr.aws
 
       - name: Login to Depot Registry
-        run: docker login --username x-token --password ${{ secrets.DEPOT_PUSH_TOKEN }} ${DEPOT_REGISTRY}
+        run: echo "${{ secrets.DEPOT_DEV_AGENT_PUBLISH_TOKEN }}" | docker login ${DEPOT_REGISTRY} -u x-token --password-stdin
 
       - name: Compute Docker tags
         id: docker-tags
@@ -231,9 +238,9 @@ jobs:
           NEW_VERSION: ${{ needs.calculate.outputs.new_version }}
           IS_PRERELEASE: ${{ needs.calculate.outputs.is_prerelease }}
         run: |
-          COMMUNITY="${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${DEPOT_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${GCP_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION}"
+          COMMUNITY="${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:${NEW_VERSION},${GCP_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION}"
           if [[ "${IS_PRERELEASE}" == "false" ]]; then
-            COMMUNITY="${COMMUNITY},${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${DEPOT_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${GCP_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest"
+            COMMUNITY="${COMMUNITY},${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:latest,${GCP_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest"
           fi
           echo "community=${COMMUNITY}" >> "$GITHUB_OUTPUT"
 
@@ -256,35 +263,86 @@ jobs:
           failure-description: "ERROR: Failed to publish OpenTelemetry Node.js Community Agent"
           tag: ${{ needs.calculate.outputs.new_version }}
 
-  # ── 6. Trigger Odigos version update + Slack (runs only if publish succeeded; skipped when publish fails/skipped — no extra job if: needed)
+  # ── 6. Trigger consumer version updates (runs only if publish succeeded)
   trigger-odigos-update:
     needs: [calculate, publish]
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     permissions:
       id-token: write
       contents: read
     steps:
-      - name: Get sts token for Odigos OSS repo
-        id: sts-oss
+      - name: Trigger agents version update in odigos
+        uses: odigos-io/ci-core/dispatch-agent-version-update@main
+        with:
+          instrumentation_agent: nodejs-community
+          version: ${{ needs.calculate.outputs.new_version }}
+          consumers: odigos
+
+      - name: Build ebpf-nodejs-instrumentation payload
+        id: payload-ebpf-nodejs
+        env:
+          AGENT_VERSION: ${{ needs.calculate.outputs.new_version }}
+        run: |
+          # Payload shape expected by ebpf-nodejs-instrumentation's
+          # update-nodejs-community-version repository_dispatch handler.
+          json="$(jq -nc --arg version "$AGENT_VERSION" \
+            '{nodejs_community_version: $version}')"
+          echo "json=$json" >> "$GITHUB_OUTPUT"
+
+      - name: Get sts token for ebpf-nodejs-instrumentation
+        id: sts-ebpf-nodejs
         uses: odigos-io/ci-core/sts@main
         with:
-          scope: odigos-io/odigos
-          identity: trigger-agent-version-updater
+          scope: odigos-io/ebpf-nodejs-instrumentation
+          identity: trigger-nodejs-community-version-updater
           output-git-config: "false"
 
-      - name: Trigger update instrumentation agents version workflow
+      - name: Trigger update in ebpf-nodejs-instrumentation
         uses: peter-evans/repository-dispatch@v4
         with:
-          token: ${{ steps.sts-oss.outputs.GH_TOKEN }}
-          repository: odigos-io/odigos
-          event-type: update-instrumentation-agents-version
-          client-payload: '{"agents_category": "nodejs", "new_agent_version": "${{ needs.calculate.outputs.new_version }}"}'
+          token: ${{ steps.sts-ebpf-nodejs.outputs.GH_TOKEN }}
+          repository: odigos-io/ebpf-nodejs-instrumentation
+          event-type: update-nodejs-community-version
+          client-payload: ${{ steps.payload-ebpf-nodejs.outputs.json }}
 
-      - name: Notify Slack
-        if: always()
-        uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
+  # Records the release in Linear with the issues that shipped in it. Its own job, not a
+  # step on `tag`: that keeps the third-party CLI away from the STS token, and keeps
+  # remote-action resolution — which happens during job setup, before continue-on-error
+  # applies — out of the job that cuts the tag.
+  linear-release:
+    needs: [calculate, tag]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
         with:
-          webhook-url: ${{ secrets.ODIGOS_RELEASE_STATUS_WEBHOOK_URL }}
-          success-description: "Triggered the Odigos instrumentation agents version update"
-          failure-description: "ERROR: Failed to trigger the Odigos instrumentation agents version update"
-          tag: ${{ needs.calculate.outputs.new_version }}
+          ref: ${{ needs.calculate.outputs.new_version }}
+          fetch-depth: 0 # the scan walks commit history
+          fetch-tags: true
+
+      - name: Fetch the GitHub release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.calculate.outputs.new_version }}
+        run: |
+          set -uo pipefail
+          if ! gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" \
+               --json body --jq .body > release-notes.md; then
+            echo "::warning::could not read the GitHub release notes for ${VERSION}"
+          fi
+          # Whitespace-only is worse than nothing: an empty note still occupies the slot
+          # in Linear and suppresses its own generation.
+          grep -q '[^[:space:]]' release-notes.md 2>/dev/null || rm -f release-notes.md
+
+      - uses: odigos-io/ci-core/linear-release@main
+        with:
+          access-key: ${{ secrets.LINEAR_RELEASE_ACCESS_KEY }}
+          name: ${{ needs.calculate.outputs.new_version }}
+          version: ${{ needs.calculate.outputs.new_version }}
+          release-notes: release-notes.md
+          # Usually a tag on another release branch; the action resolves such a ref
+          # to the fork point rather than failing the scan.
+          base-ref: ${{ needs.calculate.outputs.current_version }}
+          links: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.calculate.outputs.new_version }}

@@ -20,12 +20,17 @@ export interface ExactStringMatcher {
     match(value: string | undefined): boolean;
 }
 
+export interface HttpQueryParamsMatcher {
+    match(queryParams: string | undefined): boolean;
+}
+
 
 // a raw rule contains just a path text. it is parsed to make matching streamlined and efficient.
 // this struct is created per rule to make that happen
 export type ParsedHttpRule = {
     pathMatcher: HttpPathMatcher;
     methodMatcher: HttpMethodMatcher;
+    queryParamsMatcher: HttpQueryParamsMatcher;
     serverAddressMatcher?: HttpServerAddressMatcher;
     rule: NoisyOperationSamplingConfig;
 }
