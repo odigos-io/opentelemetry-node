@@ -153,8 +153,8 @@ export const instrumentationLibraryManifests: Map<string, InstrumentationLibrary
         import: "IORedisInstrumentation",
         sampler: [],
     }],
-    ["@opentelemetry/instrumentation-kafkajs", {
-        instrumentationNpmPackage: "@opentelemetry/instrumentation-kafkajs",
+    ["@odigos/instrumentation-kafkajs", {
+        instrumentationNpmPackage: "@odigos/instrumentation-kafkajs",
         import: "KafkaJsInstrumentation",
         sampler: [],
     }],
