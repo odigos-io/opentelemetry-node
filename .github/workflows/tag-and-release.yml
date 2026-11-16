@@ -49,7 +49,6 @@ jobs:
       current_version: ${{ steps.calc.outputs.current_version }}
       create_branch: ${{ steps.calc.outputs.create_branch }}
       release_branch: ${{ steps.calc.outputs.release_branch }}
-      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
     steps:
 
       - uses: actions/checkout@v7
@@ -65,17 +64,6 @@ jobs:
           bump: ${{ inputs.bump }}
           base_branch: ${{ inputs.base_branch }}
 
-      - name: Derive release metadata
-        id: meta
-        env:
-          NEW_VERSION: ${{ steps.calc.outputs.new_version }}
-        run: |
-          if [[ "${NEW_VERSION}" == *"-pre."* || "${NEW_VERSION}" == *"-rc."* ]]; then
-            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
-      
       - name: Notify Slack (start)
         if: always()
         uses: odigos-io/ci-core/.github/actions/slack-release-notification@main
@@ -236,12 +224,8 @@ jobs:
         id: docker-tags
         env:
           NEW_VERSION: ${{ needs.calculate.outputs.new_version }}
-          IS_PRERELEASE: ${{ needs.calculate.outputs.is_prerelease }}
         run: |
           COMMUNITY="${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION},${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:${NEW_VERSION},${GCP_REGISTRY}/${DOCKER_REPOSITORY_NAME}:${NEW_VERSION}"
-          if [[ "${IS_PRERELEASE}" == "false" ]]; then
-            COMMUNITY="${COMMUNITY},${ECR_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest,${DEPOT_REGISTRY}/${DEPOT_REPOSITORY_NAME}:latest,${GCP_REGISTRY}/${DOCKER_REPOSITORY_NAME}:latest"
-          fi
           echo "community=${COMMUNITY}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push NodeJS Community Docker image
